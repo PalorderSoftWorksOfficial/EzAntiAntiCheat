@@ -1,0 +1,201 @@
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\DriverDefs.h" />
+    <ClInclude Include="include\IoctlDefs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\AntiTamper.cpp" />
+    <ClCompile Include="source\ImageLoadBlocker.cpp" />
+    <ClCompile Include="source\ObCallbacks.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{11111111-1111-1111-1111-111111111111}</ProjectGuid>
+    <Keyword>KernelModeDriver</Keyword>
+    <RootNamespace>KernelShield</RootNamespace>
+    <TargetVersion>Windows10</TargetVersion>
+    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
+    <ProjectName>EzAntiAntiCheatDriver</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <DisableSignTool>true</DisableSignTool>
+    <SignMode>None</SignMode>
+    <ConfigurationType>Driver</ConfigurationType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DriverType>KMDF</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <DisableSignTool>true</DisableSignTool>
+    <SignMode>None</SignMode>
+    <ConfigurationType>Driver</ConfigurationType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DriverType>KMDF</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <DisableSignTool>true</DisableSignTool>
+    <SignMode>None</SignMode>
+    <ConfigurationType>Driver</ConfigurationType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DriverType>KMDF</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <DisableSignTool>true</DisableSignTool>
+    <SignMode>None</SignMode>
+    <ConfigurationType>Driver</ConfigurationType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DriverType>KMDF</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <DisableSignTool>true</DisableSignTool>
+    <SignMode>None</SignMode>
+    <ConfigurationType>Driver</ConfigurationType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DriverType>KMDF</DriverType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <DisableSignTool>true</DisableSignTool>
+    <SignMode>None</SignMode>
+    <ConfigurationType>Driver</ConfigurationType>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DriverType>KMDF</DriverType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)\$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <UACExecutionLevel>HighestAvailable</UACExecutionLevel>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <UACExecutionLevel>HighestAvailable</UACExecutionLevel>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <UACExecutionLevel>HighestAvailable</UACExecutionLevel>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /sha1 6067AE55863B0F9CFEF1A2E94471DC69F7FA85BB /sm /s My /tr http://timestamp.digicert.com /td SHA256 "I:\EzAntiAntiCheat\x64\Release\EzAntiAntiCheatDriver.sys"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /sha1 6067AE55863B0F9CFEF1A2E94471DC69F7FA85BB /sm /s My /tr http://timestamp.digicert.com /td SHA256 "I:\EzAntiAntiCheat\x64\Release\EzAntiAntiCheatDriver.sys"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /sha1 6067AE55863B0F9CFEF1A2E94471DC69F7FA85BB /sm /s My /tr http://timestamp.digicert.com /td SHA256 "I:\EzAntiAntiCheat\$(Platform)\$(Configuration)\EzAntiAntiCheatDriver.sys"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

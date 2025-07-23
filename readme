@@ -1,0 +1,117 @@
+# Installing and Using the Test Signing Certificate
+
+This guide explains how to install the test signing certificate on a Windows machine so that test-signed drivers are trusted and can be loaded without warnings.
+
+---
+
+## Import the Test Certificate (.pfx file)
+
+You should have the exported `.pfx` file (e.g., `EzAntiAntiCheatCert.pfx`) available on your target PC.
+
+### Steps:
+
+1. Press **Win + R**, type `certmgr.msc`, and press **Enter** to open Certificate Manager.
+
+2. In the left pane, expand **Personal** → **Certificates**.
+
+3. Right-click on **Certificates** under **Personal**, then select **All Tasks** → **Import...**
+
+4. In the Certificate Import Wizard:
+   - Click **Next**.
+   - Click **Browse** to select your `.pfx` file.
+   
+5. Enter the password for the `.pfx` file when prompted:
+
+   ```
+   NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg
+   ```
+
+6. Make sure **"Mark this key as exportable"** is checked, then click **Next**.
+
+7. Choose to place the certificate in the **Personal** store if not already selected.
+
+8. Click **Next**, then **Finish** to complete the import.
+
+---
+
+## Add the Certificate to Trusted Root Certification Authorities
+
+To make Windows trust this certificate for driver signing:
+
+### Steps:
+
+1. In Certificate Manager, expand **Trusted Root Certification Authorities** → **Certificates**.
+
+2. Right-click **Certificates** under this store, then select **All Tasks** → **Import...**
+
+3. Browse for the same `.pfx` file or export the certificate without the private key as a `.cer` file and import that instead.
+
+4. Complete the wizard (no password needed if importing `.cer`).
+
+---
+
+## Add the Certificate to Trusted Publishers
+
+To ensure software signed with this certificate is trusted:
+
+### Steps:
+
+1. In Certificate Manager, expand **Trusted Publishers** → **Certificates**.
+
+2. Right-click **Certificates** under **Trusted Publishers**, then select **All Tasks** → **Import...**
+
+3. Import the `.cer` file exported earlier or directly the `.pfx` (without private key).
+
+4. Complete the wizard.
+
+---
+
+## Enable Test Signing Mode
+
+To allow Windows to load test-signed drivers:
+
+### Steps:
+
+1. Open an **elevated Command Prompt** (Run as Administrator) and run:
+
+   ```cmd
+   bcdedit /set testsigning on
+   ```
+
+2. Restart your computer.
+
+### Verification:
+
+After reboot, verify test signing mode is active by running:
+
+```cmd
+bcdedit /enum
+```
+
+Look for:
+
+```
+testsigning          Yes
+```
+
+---
+
+## Install Your Test-Signed Driver
+
+Now you can install and run your test-signed driver without Windows blocking it.
+
+---
+
+## Summary
+
+| Step                                | Action                                                                                     |
+|-------------------------------------|--------------------------------------------------------------------------------------------|
+| Import `.pfx` certificate           | Use `certmgr.msc` → Personal → Import `.pfx` file with password                          |
+| Trust certificate                     | Import into **Trusted Root Certification Authorities** store                          |
+| Trust publisher                       | Import into **Trusted Publishers** store                                                 |
+| Enable test signing                   | Run `bcdedit /set testsigning on` and reboot                                              |
+| Verify                                | Run `bcdedit /enum` to check for `testsigning` set to `Yes`                              |
+
+---
+
+**Note:** Keep your `.pfx` password safe. Without it, you cannot use the private key to sign drivers on other machines.
