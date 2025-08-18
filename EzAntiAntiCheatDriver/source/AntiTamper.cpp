@@ -47,9 +47,8 @@ const ULONG crc32_table[256] = {
     0xa00ae278L,0xd70dd2eeL,0x4e048354L,0x3903b3c2L,0xa7672661L,0xd06016f7L,0x4969474dL,0x3e6e77dbL,
     0xaed16a4aL,0xd9d65adcL,0x40df0b66L,0x37d83bf0L,0xa9bcae53L,0xdebb9ec5L,0x47b2cf7fL,0x30b5ffe9L,
     0xbdbdf21cL,0xcabac28aL,0x53b39330L,0x24b4a3a6L,0xbad03605L,0xcdd70693L,0x54de5729L,0x23d967bfL,
-    0xb3667a2eL,0xc4614ab8L,0x5d681b02L,0x2a6f2b94L,0xb40bbe37L,0xc30c8ea1L,0x5a05df1bL,0x2d02ef8dL
+    0xb3667a2eL,0xc4614ab8L,0x5d681b02L,0x2a6f2b94L,0xb40bbe37L,0xc30c8ea1L,0x5a05df1bL,0x2d02ef8d
 };
-
 
 ULONG Crc32(const void* data, SIZE_T length)
 {
@@ -83,6 +82,86 @@ BOOLEAN IsManagerProcess()
     return FALSE;
 }
 
+BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
+{
+    UCHAR* imageName = PsGetProcessImageFileName(process);
+    if (!imageName) return FALSE;
+    // Add more trusted names as needed
+    if (_stricmp((const char*)imageName, "System") == 0 ||
+        _stricmp((const char*)imageName, "svchost.exe") == 0 ||
+        _stricmp((const char*)imageName, "wininit.exe") == 0 ||
+        _stricmp((const char*)imageName, "winlogon.exe") == 0)
+        return TRUE;
+    return FALSE;
+}
+
+// Swap memory page with random data
+VOID SwapMemoryPage(PVOID address, SIZE_T size)
+{
+    PMDL mdl = IoAllocateMdl(address, (ULONG)size, FALSE, FALSE, NULL);
+    if (!mdl) return;
+
+    __try {
+        MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
+        PVOID mapped = MmMapLockedPagesSpecifyCache(mdl, KernelMode, MmCached, NULL, FALSE, NormalPagePriority);
+        if (mapped) {
+            for (SIZE_T i = 0; i < size; ++i)
+                ((BYTE*)mapped)[i] = (BYTE)(KeQueryTimeIncrement() ^ (ULONG_PTR)&mapped ^ i);
+            MmUnmapLockedPages(mapped, mdl);
+        }
+        MmUnlockPages(mdl);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        // Fail silently
+    }
+    IoFreeMdl(mdl);
+}
+
+// Backup and restore memory page
+VOID BackupMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
+{
+    RtlCopyMemory(backup, address, size);
+}
+
+VOID RestoreMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
+{
+    RtlCopyMemory(address, backup, size);
+}
+
+// Main memory access handler
+VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T size, BOOLEAN isWrite)
+{
+    UCHAR* targetName = PsGetProcessImageFileName(target);
+    UCHAR* requestorName = PsGetProcessImageFileName(requestor);
+
+    if (!IsTrustedWindowsProcess(requestor))
+    {
+        SwapMemoryPage(address, size);
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Unauthorized memory access from %s to %s at %p (%llu bytes, write=%d)\n",
+            requestorName ? requestorName : (UCHAR*)"Unknown",
+            targetName ? targetName : (UCHAR*)"Unknown",
+            address, size, isWrite);
+    }
+    else if (_wcsicmp(g_ProtectedProcessName, L"EzAntiAntiCheat.exe") == 0 &&
+             targetName && _stricmp((const char*)targetName, "EzAntiAntiCheat.exe") == 0)
+    {
+        BYTE* backup = (BYTE*)ExAllocatePool2(POOL_FLAG_NON_PAGED, size, 'pgBK');
+        if (backup)
+        {
+            BackupMemoryPage(address, size, backup);
+            SwapMemoryPage(address, size);
+            LARGE_INTEGER delay;
+            delay.QuadPart = -10 * 1000; // 1ms
+            KeDelayExecutionThread(KernelMode, FALSE, &delay);
+            RestoreMemoryPage(address, size, backup);
+            ExFreePool(backup);
+        }
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Memory access to controller executable detected, swapped and restored page at %p\n", address);
+    }
+}
+
 VOID IntegrityThread(_In_ PVOID StartContext)
 {
     UNREFERENCED_PARAMETER(StartContext);
@@ -109,7 +188,7 @@ VOID IntegrityThread(_In_ PVOID StartContext)
 
         NTSTATUS waitStatus = KeWaitForSingleObject(&g_StopEvent, Executive, KernelMode, FALSE, &interval);
         if (waitStatus == STATUS_SUCCESS)
-            break; // Event set, exit thread
+            break;
     }
 
     PsTerminateSystemThread(STATUS_SUCCESS);
@@ -124,7 +203,7 @@ VOID InitializeIntegrityCheck(PVOID base, SIZE_T size)
 
 VOID ReadConfigFromRegistry()
 {
-    UNICODE_STRING regPath = RTL_CONSTANT_STRING(L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\AntiShield");
+    UNICODE_STRING regPath = RTL_CONSTANT_STRING(L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\EzAntiAntiCheat");
     OBJECT_ATTRIBUTES attrs;
     InitializeObjectAttributes(&attrs, &regPath, OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, NULL);
 
@@ -179,7 +258,7 @@ NTSTATUS StartIntegrityThread()
     }
 
     ZwClose(g_IntegrityThreadHandle);
-    g_IntegrityThreadHandle = nullptr; // Don’t hold thread handle
+    g_IntegrityThreadHandle = nullptr;
     return STATUS_SUCCESS;
 }
 

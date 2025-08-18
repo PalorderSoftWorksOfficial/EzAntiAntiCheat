@@ -34,6 +34,9 @@
     <ClCompile Include="source\ImageLoadBlocker.cpp" />
     <ClCompile Include="source\ObCallbacks.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{11111111-1111-1111-1111-111111111111}</ProjectGuid>
     <Keyword>KernelModeDriver</Keyword>
@@ -147,7 +150,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;D:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;I:\EzAntiAntiCheat\EzAntiAntiCheatDriver\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

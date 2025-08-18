@@ -17,13 +17,30 @@
 #include <wdm.h>
 #include "../include/DriverDefs.h"
 
+// Whitelist of protected anti-cheat process names
+static const char* const g_ProtectedProcesses[] = {
+    "EasyAntiCheat.exe", "rbxhyperion.exe", "vgk.exe", "Vanguard.exe"
+};
+
 PVOID g_CallbackHandle = nullptr;
+
+BOOLEAN IsWhitelistedAntiCheatProcess(PEPROCESS Process)
+{
+    UCHAR* imageName = PsGetProcessImageFileName(Process);
+    if (!imageName) return FALSE;
+    for (size_t i = 0; i < ARRAYSIZE(g_ProtectedProcesses); ++i)
+    {
+        if (_stricmp((const char*)imageName, g_ProtectedProcesses[i]) == 0)
+            return TRUE;
+    }
+    return FALSE;
+}
 
 OB_PREOP_CALLBACK_STATUS PreOpCallback(PVOID, POB_PRE_OPERATION_INFORMATION Info)
 {
     if (Info->ObjectType == *PsProcessType)
     {
-        if (IsProtectedProcess((PEPROCESS)Info->Object))
+        if (IsWhitelistedAntiCheatProcess((PEPROCESS)Info->Object))
         {
             // Remove all desired access to prevent handle creation
             Info->Parameters->CreateHandleInformation.DesiredAccess = 0;
@@ -49,7 +66,6 @@ extern "C" void RegisterObCallbacks()
     if (!NT_SUCCESS(status))
     {
         g_CallbackHandle = nullptr;
-        
     }
 }
 

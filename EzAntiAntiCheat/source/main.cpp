@@ -1,15 +1,18 @@
 #include <windows.h>
-
+#undef max
+#undef min
+#include <sddl.h>
 #include <tlhelp32.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <psapi.h>
 #include <string>
-#include <algorithm> 
+#include <algorithm>
 #include "../include/ControllerDefs.h"
 #include "../include/IoctlDefs.h"
 #include <csignal>
+
 // Global state
 bool g_ServiceInstalled = false;
 SC_HANDLE g_hService = nullptr;
@@ -18,7 +21,7 @@ SC_HANDLE g_hSCManager = nullptr;
 bool InstallService();
 bool LoadDriver();
 bool UnloadDriver();
-bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0); // Updated signature
+bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0);
 void RunMenu();
 void CleanupOnExit()
 {
@@ -42,20 +45,13 @@ BOOL WINAPI ConsoleHandler(DWORD dwCtrlType)
     }
 }
 
-int main()
-{
-    atexit(CleanupOnExit);
-    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
-    RunMenu();
-
-    if (g_ServiceInstalled)
-        UnloadDriver();
-
-    return 0;
-}
-
 void ListAndWipeProcess()
 {
+    // Whitelist of allowed anti-cheat executables
+    static const std::vector<std::wstring> allowedExecutables = {
+        L"EasyAntiCheat.exe", L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe"
+    };
+
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnap == INVALID_HANDLE_VALUE)
     {
@@ -74,17 +70,22 @@ void ListAndWipeProcess()
     {
         do
         {
-            std::wcout << index << ". " << pe32.szExeFile << " (PID: " << pe32.th32ProcessID << ")\n";
-            processNames.push_back(pe32.szExeFile);
-            processIds.push_back(pe32.th32ProcessID);
-            ++index;
+            std::wstring exe(pe32.szExeFile);
+            // Only show whitelisted anti-cheat processes
+            if (std::find(allowedExecutables.begin(), allowedExecutables.end(), exe) != allowedExecutables.end())
+            {
+                std::wcout << index << ". " << exe << " (PID: " << pe32.th32ProcessID << ")\n";
+                processNames.push_back(exe);
+                processIds.push_back(pe32.th32ProcessID);
+                ++index;
+            }
         } while (Process32Next(hSnap, &pe32));
     }
     CloseHandle(hSnap);
 
     if (processNames.empty())
     {
-        std::cout << "No processes found\n";
+        std::cout << "No allowed anti-cheat processes found\n";
         return;
     }
 
@@ -92,12 +93,14 @@ void ListAndWipeProcess()
     std::cout << "Select process to terminate and wipe (0 to cancel): ";
     std::cin >> selection;
 
-    if (selection <= 0 || selection > (int)processNames.size())
+    if (std::cin.fail() || selection <= 0 || selection > (int)processNames.size())
     {
+        std::cin.clear();
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cout << "Cancelled\n";
         return;
     }
-    
+
     DWORD pid = processIds[selection - 1];
     std::wstring exeName = processNames[selection - 1];
 
@@ -130,6 +133,16 @@ void ListAndWipeProcess()
         return;
     }
 
+    // Block system directory wipes
+    std::wstring exePathStr(exePath);
+    if (exePathStr.find(L"\\Windows\\") != std::wstring::npos ||
+        exePathStr.find(L"\\System32\\") != std::wstring::npos)
+    {
+        std::wcout << L"Refusing to wipe system file: " << exePath << L"\n";
+        CloseHandle(hProcess);
+        return;
+    }
+
     std::wcout << L"Target: " << exePath << L"\n";
 
     // Terminate the process (user-mode fallback)
@@ -140,7 +153,6 @@ void ListAndWipeProcess()
         return;
     }
 
-    // Wait for process to actually exit
     WaitForSingleObject(hProcess, 5000); // wait max 5 seconds
     CloseHandle(hProcess);
 
@@ -219,6 +231,14 @@ void RunMenu()
             << "\n0. Exit\nChoice: ";
         std::cin >> choice;
 
+        if (std::cin.fail())
+        {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input\n";
+            continue;
+        }
+
         switch (choice)
         {
         case 1:
@@ -261,4 +281,51 @@ void RunMenu()
             break;
         }
     }
+}
+
+bool IsSystemAccount()
+{
+    HANDLE hToken = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+        return false;
+
+    DWORD size = 0;
+    GetTokenInformation(hToken, TokenUser, nullptr, 0, &size);
+    PTOKEN_USER ptu = (PTOKEN_USER)malloc(size);
+    if (!ptu) {
+        CloseHandle(hToken);
+        return false;
+    }
+
+    bool isSystem = false;
+    if (GetTokenInformation(hToken, TokenUser, ptu, size, &size)) {
+        WCHAR* sidString = nullptr;
+        if (ConvertSidToStringSidW(ptu->User.Sid, &sidString)) {
+            // SID for NT AUTHORITY\SYSTEM is S-1-5-18
+            if (wcscmp(sidString, L"S-1-5-18") == 0)
+                isSystem = true;
+            LocalFree(sidString);
+        }
+    }
+    free(ptu);
+    CloseHandle(hToken);
+    return isSystem;
+}
+
+int main()
+{
+    if (!IsSystemAccount()) {
+        std::cout << "This application must be run as NT AUTHORITY\\SYSTEM.\nPress any key to exit...";
+        std::cin.get();
+        return 1;
+    }
+
+    atexit(CleanupOnExit);
+    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
+    RunMenu();
+
+    if (g_ServiceInstalled)
+        UnloadDriver();
+
+    return 0;
 }

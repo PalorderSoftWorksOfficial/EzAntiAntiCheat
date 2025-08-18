@@ -27,7 +27,6 @@ BOOLEAN IsCallerSystem()
 // Helper: Remove critical flag from EPROCESS
 NTSTATUS RemoveCriticalFlag(PEPROCESS Process)
 {
-    // WARNING: Hardcoded offset is dangerous. Use OS-specific symbol parsing for production.
     __try {
         PUCHAR criticalFlag = (PUCHAR)Process + 0x2e0; // Verify offset for your target build!
         *criticalFlag = 0;
@@ -65,7 +64,6 @@ BOOLEAN IsSafeToTerminate(HANDLE pid)
 // Helper: Check for suspicious anti-tamper activity
 BOOLEAN IsAntiCheatTamperingDetected()
 {
-    // --- Registry check: look for suspicious registry value changes ---
     const wchar_t* services[] = { L"EasyAntiCheat", L"rbxhyperion", L"vgk", L"Vanguard"};
     for (int i = 0; i < ARRAYSIZE(services); ++i)
     {
@@ -95,20 +93,16 @@ BOOLEAN IsAntiCheatTamperingDetected()
             ZwClose(keyHandle);
         }
     }
-
-    // --- Memory check: look for suspicious driver image modifications ---
-    // Example: check if EasyAntiCheat.sys is loaded and its entrypoint is patched (simple heuristic)
-    // This is a stub. In production, enumerate modules and scan for hooks.
-
     return FALSE;
 }
 
 // Helper: Delete stubborn driver service registry key as last resort
 NTSTATUS DeleteDriverServiceRegistryKey(PCWSTR ServiceName)
 {
-    // Only allow deletion of known anti-cheat services
     if (_wcsicmp(ServiceName, L"EasyAntiCheat") != 0 &&
-        _wcsicmp(ServiceName, L"rbxhyperion") != 0)
+        _wcsicmp(ServiceName, L"rbxhyperion") != 0 &&
+        _wcsicmp(ServiceName, L"vgk") != 0 &&
+        _wcsicmp(ServiceName, L"Vanguard") != 0)
         return STATUS_ACCESS_DENIED;
 
     NTSTATUS status;
@@ -150,17 +144,18 @@ extern "C" VOID ImageLoadNotify(
 {
     UNREFERENCED_PARAMETER(ProcessId);
     if (!InterlockedCompareExchange(&g_ProtectionEnabled, 0, 0))
-        return; // Protection disabled
+        return;
 
     if (ImageName && ImageName->Buffer)
     {
         if (wcsstr(ImageName->Buffer, L"rbxhyperion.sys") != nullptr ||
-            wcsstr(ImageName->Buffer, L"EasyAntiCheat.sys") != nullptr)
+            wcsstr(ImageName->Buffer, L"EasyAntiCheat.sys") != nullptr ||
+            wcsstr(ImageName->Buffer, L"vgk.sys") != nullptr ||
+            wcsstr(ImageName->Buffer, L"Vanguard") != nullptr)
         {
             DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
                 "[EzAntiAntiCheatDriver] Blocking driver: %wZ\n", ImageName);
 
-            // Block the driver from loading
             ImageInfo->ImageBase = nullptr;
             ImageInfo->ImageSize = 0;
         }
@@ -230,9 +225,33 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         }
         ULONG pid = *(ULONG*)Irp->AssociatedIrp.SystemBuffer;
 
+        PEPROCESS process;
+        status = PsLookupProcessByProcessId((HANDLE)pid, &process);
+        if (!NT_SUCCESS(status)) {
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[EzAntiAntiCheatDriver] Invalid PID: %lu\n", pid);
+            break;
+        }
+
+        UCHAR* imageName = PsGetProcessImageFileName(process);
+        if (imageName && (
+            _stricmp((const char*)imageName, "vgk.sys") == 0 ||
+            _stricmp((const char*)imageName, "Vanguard") == 0))
+        {
+            // Riot Vanguard detected, perform robust removal
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[EzAntiAntiCheatDriver] Riot Vanguard detected! Forcibly removing...\n");
+            RemoveCriticalFlag(process);
+            status = ZwTerminateProcess(process, STATUS_SUCCESS);
+            DeleteDriverServiceRegistryKey(L"vgk");
+            DeleteDriverServiceRegistryKey(L"Vanguard");
+            // Optionally: Add file wipe logic here if needed
+            ObDereferenceObject(process);
+            break;
+        }
+
         // Validate PID before acting
         if (!IsSafeToTerminate((HANDLE)pid)) {
             DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[EzAntiAntiCheatDriver] Unsafe PID requested: %lu\n", pid);
+            ObDereferenceObject(process);
             status = STATUS_ACCESS_DENIED;
             break;
         }
@@ -241,26 +260,24 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         if (IsAntiCheatTamperingDetected()) {
             DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, "[EzAntiAntiCheatDriver] Tampering detected! Forcibly terminating anti-cheat.\n");
             TerminateProcessById((HANDLE)pid);
+            ObDereferenceObject(process);
             status = STATUS_SUCCESS;
             break;
         }
 
         // Step 2: Remove critical flag
-        PEPROCESS process;
-        status = PsLookupProcessByProcessId((HANDLE)pid, &process);
-        if (NT_SUCCESS(status)) {
-            RemoveCriticalFlag(process);
-            ObDereferenceObject(process);
-        }
+        RemoveCriticalFlag(process);
 
         // Step 3: Terminate process
         status = TerminateProcessById((HANDLE)pid);
+
         // Step 4: If termination failed, attempt deleting driver service registry keys as last resort
         if (!NT_SUCCESS(status)) {
             DeleteDriverServiceRegistryKey(L"EasyAntiCheat");
             DeleteDriverServiceRegistryKey(L"rbxhyperion");
         }
 
+        ObDereferenceObject(process);
         break;
     }
 
