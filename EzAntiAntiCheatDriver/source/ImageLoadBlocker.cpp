@@ -268,8 +268,7 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             break;
         }
 
-        // Step 2: Remove critical flag
-        PEPROCESS process;
+        // Step 2: Remove critical flagB
         status = PsLookupProcessByProcessId((HANDLE)pid, &process);
         if (NT_SUCCESS(status)) {
             RemoveCriticalFlag(process);
