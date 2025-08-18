@@ -6,12 +6,15 @@
 #ifdef Enabled
 #undef Enabled
 #endif
+
 #ifdef Reserved
 #undef Reserved
 #endif
+
 #ifdef Version
 #undef Version
 #endif
+
 #ifdef Size
 #undef Size
 #endif
@@ -139,7 +142,7 @@ bool InstallService()
             std::cout << "Service started successfully\n";
             g_ServiceInstalled = true;
             return true;
-        }
+    }
     }
 
     // Start the service if newly created

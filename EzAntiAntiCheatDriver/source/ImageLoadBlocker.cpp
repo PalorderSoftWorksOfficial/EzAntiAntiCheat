@@ -27,6 +27,7 @@ BOOLEAN IsCallerSystem()
 // Helper: Remove critical flag from EPROCESS
 NTSTATUS RemoveCriticalFlag(PEPROCESS Process)
 {
+    // Windows 10/11: EPROCESS + 0x2e0 is usually the critical flag (verify for your target build!)
     __try {
         PUCHAR criticalFlag = (PUCHAR)Process + 0x2e0; // Verify offset for your target build!
         *criticalFlag = 0;
@@ -54,9 +55,9 @@ BOOLEAN IsSafeToTerminate(HANDLE pid)
         _stricmp((const char*)imageName, "wininit.exe") == 0 ||
         _stricmp((const char*)imageName, "winlogon.exe") == 0))
     {
-        ObDereferenceObject(process);
+    ObDereferenceObject(process);
         return FALSE;
-    }
+}
     ObDereferenceObject(process);
     return TRUE;
 }
@@ -156,6 +157,7 @@ extern "C" VOID ImageLoadNotify(
             DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
                 "[EzAntiAntiCheatDriver] Blocking driver: %wZ\n", ImageName);
 
+            // Block the driver from loading
             ImageInfo->ImageBase = nullptr;
             ImageInfo->ImageSize = 0;
         }
@@ -219,6 +221,7 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
     case IOCTL_KILL_AND_WIPE_PROCESS:
     {
+        // Validate input buffer size
         if (stack->Parameters.DeviceIoControl.InputBufferLength < sizeof(ULONG)) {
             status = STATUS_BUFFER_TOO_SMALL;
             break;
@@ -266,7 +269,12 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         }
 
         // Step 2: Remove critical flag
-        RemoveCriticalFlag(process);
+        PEPROCESS process;
+        status = PsLookupProcessByProcessId((HANDLE)pid, &process);
+        if (NT_SUCCESS(status)) {
+            RemoveCriticalFlag(process);
+            ObDereferenceObject(process);
+        }
 
         // Step 3: Terminate process
         status = TerminateProcessById((HANDLE)pid);

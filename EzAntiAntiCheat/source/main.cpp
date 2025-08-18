@@ -8,7 +8,7 @@
 #include <vector>
 #include <psapi.h>
 #include <string>
-#include <algorithm>
+#include <algorithm> 
 #include "../include/ControllerDefs.h"
 #include "../include/IoctlDefs.h"
 #include <csignal>
@@ -25,6 +25,8 @@ bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0);
 void RunMenu();
 void CleanupOnExit()
 {
+    RunMenu();
+
     if (g_ServiceInstalled)
         UnloadDriver();
 }
@@ -42,7 +44,7 @@ BOOL WINAPI ConsoleHandler(DWORD dwCtrlType)
         return TRUE;
     default:
         return FALSE;
-    }
+}
 }
 
 void ListAndWipeProcess()
@@ -76,8 +78,8 @@ void ListAndWipeProcess()
             {
                 std::wcout << index << ". " << exe << " (PID: " << pe32.th32ProcessID << ")\n";
                 processNames.push_back(exe);
-                processIds.push_back(pe32.th32ProcessID);
-                ++index;
+            processIds.push_back(pe32.th32ProcessID);
+            ++index;
             }
         } while (Process32Next(hSnap, &pe32));
     }
@@ -153,6 +155,7 @@ void ListAndWipeProcess()
         return;
     }
 
+    // Wait for process to actually exit
     WaitForSingleObject(hProcess, 5000); // wait max 5 seconds
     CloseHandle(hProcess);
 

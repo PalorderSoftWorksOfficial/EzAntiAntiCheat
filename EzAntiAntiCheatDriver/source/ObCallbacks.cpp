@@ -66,6 +66,7 @@ extern "C" void RegisterObCallbacks()
     if (!NT_SUCCESS(status))
     {
         g_CallbackHandle = nullptr;
+        
     }
 }
 
