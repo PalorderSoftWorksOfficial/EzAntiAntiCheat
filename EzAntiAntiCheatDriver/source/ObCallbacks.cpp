@@ -19,7 +19,7 @@
 
 // Whitelist of protected anti-cheat process names
 static const char* const g_ProtectedProcesses[] = {
-    "EasyAntiCheat.exe", "rbxhyperion.exe", "vgk.exe", "Vanguard.exe"
+    "EasyAntiCheat.exe", "rbxhyperion.exe", "vgk.exe", "Vanguard.exe","notepad.exe"
 };
 
 PVOID g_CallbackHandle = nullptr;

@@ -10,7 +10,7 @@ static volatile LONG g_ProtectionEnabled = 0;
 
 // Device and symbolic link names
 PDEVICE_OBJECT g_DeviceObject = nullptr;
-UNICODE_STRING g_SymLinkName = RTL_CONSTANT_STRING(L"\\DosDevices\\KernelShield");
+UNICODE_STRING g_SymLinkName = RTL_CONSTANT_STRING(L"\\DosDevices\\EasyAntiAntiCheat.exe");
 
 // Helper: Check if caller is SYSTEM or trusted process
 BOOLEAN IsCallerSystem()

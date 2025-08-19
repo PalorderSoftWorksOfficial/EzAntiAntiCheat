@@ -26,7 +26,20 @@ extern "C" bool g_ServiceInstalled = false;
 extern "C" SC_HANDLE g_hService = nullptr;
 extern "C" SC_HANDLE g_hSCManager = nullptr;
 
-const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver.sys";
+#if defined(_WIN64)
+#ifdef _DEBUG
+const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver-x64-Debug.sys";
+#else
+const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver-x64-Release.sys";
+#endif
+#else
+#ifdef _DEBUG
+const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver-x86-Debug.sys";
+#else
+const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver-x86-Release.sys";
+#endif
+#endif
+
 
 // Check if a service is running
 bool IsServiceRunning(SC_HANDLE service)
