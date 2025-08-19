@@ -1,0 +1,44 @@
+name: MSBuild WDK Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  SOLUTION_FILE_PATH: "EzAntiAntiCheat.sln"
+  BUILD_CONFIGURATION: Release
+  BUILD_PLATFORM: x64
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Install latest Windows SDK and WDK
+      run: |
+        choco install windows-sdk --pre --yes
+        choco install wdk --pre --yes
+
+    - name: Restore NuGet packages
+      working-directory: ${{ github.workspace }}
+      run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+
+    - name: Build with MSBuild
+      working-directory: ${{ github.workspace }}
+      run: |
+        msbuild ${{ env.SOLUTION_FILE_PATH }} `
+          /m `
+          /p:Configuration=${{ env.BUILD_CONFIGURATION }} `
+          /p:Platform=${{ env.BUILD_PLATFORM }} `
+          /p:PreferredToolArchitecture=x64 `
+          /verbosity:minimal
