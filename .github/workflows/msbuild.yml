@@ -7,7 +7,7 @@ on:
     branches: [ "master" ]
 
 env:
-  SOLUTION_FILE_PATH: "EzAntiAntiCheat.sln"
+  SOLUTION_FILE_PATH: "EzAntiAntiCheat.sln"  # change if different
   BUILD_CONFIGURATION: Release
   BUILD_PLATFORM: x64
 
@@ -21,18 +21,27 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # Setup MSBuild
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.0.2
 
-    - name: Install latest Windows SDK and WDK
-      run: |
-        choco install windows-sdk --pre --yes
-        choco install wdk --pre --yes
+    # Install Visual Studio workloads including WDK and Windows SDK
+    - name: Setup Visual Studio with WDK & Windows SDK
+      uses: ilammy/visual-studio-setup@v1
+      with:
+        vs-version: 'latest'
+        vs-workloads: |
+          Microsoft.VisualStudio.Workload.NativeDesktop
+          Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+          Microsoft.VisualStudio.Component.WindowsDriverKit
+          Microsoft.VisualStudio.Component.Windows10SDK.22621
 
+    # Restore NuGet packages
     - name: Restore NuGet packages
       working-directory: ${{ github.workspace }}
       run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
 
+    # Build with MSBuild
     - name: Build with MSBuild
       working-directory: ${{ github.workspace }}
       run: |
