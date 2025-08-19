@@ -37,3 +37,11 @@ jobs:
           /p:Platform=${{ env.BUILD_PLATFORM }} `
           /p:PreferredToolArchitecture=x64 `
           /verbosity:minimal
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: EzAntiAntiCheat-Build
+        path: |
+          ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.sys
+          ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.exe
