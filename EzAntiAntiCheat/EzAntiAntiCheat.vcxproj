@@ -141,7 +141,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>I:\EzAntiAntiCheat\EzAntiAntiCheat\include;I:\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheat\EzAntiAntiCheat\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -156,7 +156,7 @@
       <Message>Auto sign build</Message>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /f "$(SolutionDir)/EzAntiAntiCheatCert.pfx" /p NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg /tr http://timestamp.digicert.com /td SHA256 "$(TargetPath)"</Command>
+      <Command>signtool.exe sign /fd SHA256 /f "$(SolutionDir)/EzAntiAntiCheatCert.pfx" /p NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg /tr http://timestamp.digicert.com /td SHA256 "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

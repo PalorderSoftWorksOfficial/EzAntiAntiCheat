@@ -1,4 +1,4 @@
-#include <wdm.h>
+#include <ntifs.h>
 #include <ntstrsafe.h>
 #include "../include/DriverDefs.h"
 
@@ -13,7 +13,7 @@ ULONG g_ExpectedCrc = 0;
 HANDLE g_IntegrityThreadHandle = nullptr;
 KEVENT g_StopEvent;
 BOOLEAN g_EnableWatchdog = TRUE;
-WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat.exe";
+WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x64-Release.exe";
 
 const ULONG crc32_table[256] = {
     0x00000000L,0x77073096L,0xee0e612cL,0x990951baL,0x076dc419L,0x706af48fL,0xe963a535L,0x9e6495a3L,
@@ -64,11 +64,20 @@ ULONG Crc32(const void* data, SIZE_T length)
     return ~crc;
 }
 
+ULONG ObfuscatedCrc32(const void* data, SIZE_T length)
+{
+    // Simple obfuscation: XOR with a constant
+    ULONG crc = Crc32(data, length);
+    return crc ^ 0xA5A5A5A5;
+}
+
 BOOLEAN IsManagerProcess()
 {
     PEPROCESS process = PsGetCurrentProcess();
     UCHAR* imageName = PsGetProcessImageFileName(process);
+
     if (imageName)
+
     {
         ANSI_STRING ansiName;
         UNICODE_STRING unicodeName;
@@ -86,7 +95,8 @@ BOOLEAN IsManagerProcess()
 BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
 {
     UCHAR* imageName = PsGetProcessImageFileName(process);
-    if (!imageName) return FALSE;
+    ULONG pid = (ULONG)(ULONG_PTR)PsGetProcessId(process);
+    if (!imageName || pid == 0 || pid == 4) return FALSE;
     // Add more trusted names as needed
     if (_stricmp((const char*)imageName, "System") == 0 ||
         _stricmp((const char*)imageName, "svchost.exe") == 0 ||
@@ -129,7 +139,10 @@ VOID RestoreMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
     RtlCopyMemory(address, backup, size);
 }
 
-// Main memory access handler
+// Main memory access handler with rate limiting
+static LONG g_UnauthorizedAccessCount = 0;
+#define MAX_UNAUTHORIZED_ACCESS 100
+
 VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T size, BOOLEAN isWrite)
 {
     UCHAR* targetName = PsGetProcessImageFileName(target);
@@ -137,13 +150,24 @@ VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T
 
     if (!IsTrustedWindowsProcess(requestor))
     {
-        SwapMemoryPage(address, size);
-        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
-            "[EasyAntiAntiCheat] Unauthorized memory access from %s to %s at %p (%llu bytes, write=%d)\n",
-            requestorName ? requestorName : (UCHAR*)"Unknown",
-            targetName ? targetName : (UCHAR*)"Unknown",
-            address, size, isWrite);
+        InterlockedIncrement(&g_UnauthorizedAccessCount);
+        if (g_UnauthorizedAccessCount < MAX_UNAUTHORIZED_ACCESS)
+        {
+            SwapMemoryPage(address, size);
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                "[EasyAntiAntiCheat] Unauthorized memory access from %s to %s at %p (%llu bytes, write=%d)\n",
+                requestorName ? requestorName : (UCHAR*)"Unknown",
+                targetName ? targetName : (UCHAR*)"Unknown",
+                address, size, isWrite);
+        }
+        else if (g_UnauthorizedAccessCount == MAX_UNAUTHORIZED_ACCESS)
+        {
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                "[EasyAntiAntiCheat] Too many unauthorized accesses, further events suppressed\n");
+        }
+        return;
     }
+    // --- Controller executable logic unchanged ---
     else if (_wcsicmp(g_ProtectedProcessName, L"EzAntiAntiCheat.exe") == 0 &&
              targetName && _stricmp((const char*)targetName, "EzAntiAntiCheat.exe") == 0)
     {
@@ -174,7 +198,7 @@ VOID IntegrityThread(_In_ PVOID StartContext)
     {
         if (g_EnableWatchdog && !IsManagerProcess())
         {
-            ULONG currentCrc = Crc32(g_DriverBase, g_DriverSize);
+            ULONG currentCrc = ObfuscatedCrc32(g_DriverBase, g_DriverSize);
             if (currentCrc != g_ExpectedCrc)
                 InterlockedExchange(&g_IntegrityOk, FALSE);
         }
@@ -199,12 +223,12 @@ VOID InitializeIntegrityCheck(PVOID base, SIZE_T size)
 {
     g_DriverBase = base;
     g_DriverSize = size;
-    g_ExpectedCrc = Crc32(g_DriverBase, g_DriverSize);
+    g_ExpectedCrc = ObfuscatedCrc32(g_DriverBase, g_DriverSize);
 }
 
 VOID ReadConfigFromRegistry()
 {
-    UNICODE_STRING regPath = RTL_CONSTANT_STRING(L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\EzAntiAntiCheat");
+    UNICODE_STRING regPath = RTL_CONSTANT_STRING(L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\EzAntiAntiCheatDriver");
     OBJECT_ATTRIBUTES attrs;
     InitializeObjectAttributes(&attrs, &regPath, OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, NULL);
 
@@ -219,7 +243,14 @@ VOID ReadConfigFromRegistry()
         if (NT_SUCCESS(ZwQueryValueKey(hKey, &enableName, KeyValuePartialInformation, buffer, sizeof(buffer), &resultLength)))
         {
             if (pValue->Type == REG_DWORD && pValue->DataLength == sizeof(DWORD))
+            {
                 g_EnableWatchdog = (*(DWORD*)pValue->Data) ? TRUE : FALSE;
+                if (!g_EnableWatchdog)
+                {
+                    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                        "[EasyAntiAntiCheat] Watchdog disabled via registry! This is a security risk.\n");
+                }
+            }
         }
 
         UNICODE_STRING procName = RTL_CONSTANT_STRING(L"ProtectedProcessName");
@@ -233,6 +264,7 @@ VOID ReadConfigFromRegistry()
             }
         }
 
+        // TODO: Check registry ACLs for SYSTEM-only access (requires more code)
         ZwClose(hKey);
     }
 }

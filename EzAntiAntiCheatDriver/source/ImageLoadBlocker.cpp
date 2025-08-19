@@ -282,6 +282,7 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         if (!NT_SUCCESS(status)) {
             DeleteDriverServiceRegistryKey(L"EasyAntiCheat");
             DeleteDriverServiceRegistryKey(L"rbxhyperion");
+			DeleteDriverServiceRegistryKey(L"vgk");
         }
 
         ObDereferenceObject(process);

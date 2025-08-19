@@ -50,7 +50,30 @@ const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver-x86-Release.sys";
 #else
 #error Unsupported architecture
 #endif
+#if defined(_M_ARM64)
+#ifdef _DEBUG
+std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-arm64-Debug.sys";
+#else
+std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-arm64-Release.sys";
+#endif
 
+#elif defined(_M_X64) || defined(_WIN64)
+#ifdef _DEBUG
+std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-x64-Debug.sys";
+#else
+std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-x64-Release.sys";
+#endif
+
+#elif defined(_M_IX86)
+#ifdef _DEBUG
+std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-x86-Debug.sys";
+#else
+std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-x86-Release.sys";
+#endif
+
+#else
+#error Unsupported architecture
+#endif
 
 
 // Check if a service is running
@@ -109,8 +132,6 @@ bool InstallService()
             CloseServiceHandle(g_hSCManager);
             return false;
         }
-
-        std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver.sys";
 
         g_hService = CreateService(
             g_hSCManager,
