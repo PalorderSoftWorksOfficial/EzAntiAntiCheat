@@ -125,7 +125,7 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
 void ListAndWipeProcess()
 {
     static const std::vector<std::wstring> allowedExecutables = {
-        L"EasyAntiCheat.exe", L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe"
+        L"EasyAntiCheat.exe", L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe"
     };
 
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
