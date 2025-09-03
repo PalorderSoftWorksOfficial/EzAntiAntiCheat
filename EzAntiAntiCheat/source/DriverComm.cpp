@@ -5,7 +5,7 @@
 
 bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize)
 {
-    HANDLE hDevice = CreateFileW(L"\\\\.\\EasyAntiCheatDriver", GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+    HANDLE hDevice = CreateFileW(L"\\\\.\\EzAntiAntiCheatDriver", GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
     if (hDevice == INVALID_HANDLE_VALUE)
     {
         std::cout << "Failed to open driver device\n";

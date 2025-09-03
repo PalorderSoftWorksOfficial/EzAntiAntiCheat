@@ -183,7 +183,7 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /sha1 6067AE55863B0F9CFEF1A2E94471DC69F7FA85BB /sm /s My /tr http://timestamp.digicert.com /td SHA256 "I:\EzAntiAntiCheat\x64\Release\EzAntiAntiCheatDriver.sys"</Command>
+      <Command>signtool.exe sign /fd SHA256 /f "$(SolutionDir)/EzAntiAntiCheatCert.pfx" /p NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg /tr http://timestamp.digicert.com /td SHA256 "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
@@ -201,7 +201,7 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /fd SHA256 /sha1 6067AE55863B0F9CFEF1A2E94471DC69F7FA85BB /sm /s My /tr http://timestamp.digicert.com /td SHA256 "I:\EzAntiAntiCheat\$(Platform)\$(Configuration)\EzAntiAntiCheatDriver.sys"</Command>
+      <Command>signtool.exe sign /fd SHA256 /f "$(SolutionDir)/EzAntiAntiCheatCert.pfx" /p NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg /tr http://timestamp.digicert.com /td SHA256 "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\\Microsoft.Cpp.targets" />
