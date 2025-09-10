@@ -1,3 +1,8 @@
+/**
+ * @file main.cpp
+ * @brief The main entry point for the user-mode controller application.
+ */
+
 #define NOMINMAX
 #include <windows.h>
 #include <algorithm>
@@ -14,18 +19,48 @@
 #include <csignal>
 #include <random>
 #include <limits>
-#include "../include/IoctlDefs.h"
-#include "../include/ControllerDefs.h"
-// Global state
-bool g_ServiceInstalled = false;
-SC_HANDLE g_hService = nullptr;
-SC_HANDLE g_hSCManager = nullptr;
+#include "IoctlDefs.h"
+#include "ControllerDefs.h"
+
+//
+// Global variables (declared in DriverLoader.cpp)
+//
+
+/**
+ * @var g_ServiceInstalled
+ * @brief A flag indicating whether the service is currently installed.
+ */
+extern bool g_ServiceInstalled;
+
+/**
+ * @var g_hService
+ * @brief A handle to the driver service.
+ */
+extern SC_HANDLE g_hService;
+
+/**
+ * @var g_hSCManager
+ * @brief A handle to the Service Control Manager.
+ */
+extern SC_HANDLE g_hSCManager;
+
+
+//
+// Function prototypes
+//
 
 bool InstallService();
 bool LoadDriver();
 bool UnloadDriver();
 bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0);
 void RunMenu();
+
+/**
+ * @brief Cleans up resources on exit.
+ *
+ * This function is registered with `atexit` and is called when the program
+ * exits. It ensures that the driver is unloaded if it was installed.
+ */
 void CleanupOnExit()
 {
     RunMenu();
@@ -34,6 +69,16 @@ void CleanupOnExit()
         UnloadDriver();
 }
 
+/**
+ * @brief Handles console control events.
+ *
+ * This function is registered as a console control handler and is called when
+ * the user closes the console or presses Ctrl+C. It calls `CleanupOnExit` to
+ * ensure that resources are cleaned up.
+ *
+ * @param dwCtrlType The type of control signal received.
+ * @return TRUE if the event was handled, FALSE otherwise.
+ */
 BOOL WINAPI ConsoleHandler(DWORD dwCtrlType)
 {
     switch (dwCtrlType)
@@ -50,6 +95,16 @@ BOOL WINAPI ConsoleHandler(DWORD dwCtrlType)
 }
 }
 
+/**
+ * @brief Checks if a file path is safe to wipe.
+ *
+ * This function checks if the given file path is in a system directory or
+ * outside of the "Program Files" directories. This is a safety measure to
+ * prevent accidental deletion of important system files.
+ *
+ * @param exePath The path to the executable file.
+ * @return true if the path is safe to wipe, false otherwise.
+ */
 bool IsSafeWipePath(const std::wstring& exePath) {
     // Block system folders
     std::wstring lowerPath = exePath;
@@ -65,6 +120,16 @@ bool IsSafeWipePath(const std::wstring& exePath) {
     return true;
 }
 
+/**
+ * @brief Checks if a file is owned by SYSTEM or an administrator.
+ *
+ * This function checks the owner of the specified file to see if it is the
+ * SYSTEM account or a member of the Administrators group.
+ *
+ * @param filePath The path to the file.
+ * @return true if the file is owned by SYSTEM or an administrator, false
+ * otherwise.
+ */
 bool IsFileOwnerSystemOrAdmin(const std::wstring& filePath) {
     PSID ownerSid = nullptr;
     PSECURITY_DESCRIPTOR sd = nullptr;
@@ -82,6 +147,16 @@ bool IsFileOwnerSystemOrAdmin(const std::wstring& filePath) {
     return isSystemOrAdmin;
 }
 
+/**
+ * @brief Securely wipes a file by overwriting it with random data.
+ *
+ * This function overwrites the entire contents of a file with random data
+ * before deleting it. This makes it more difficult to recover the original
+ * file.
+ *
+ * @param filePath The path to the file to wipe.
+ * @param fileSize The size of the file.
+ */
 void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
     HANDLE hFile = CreateFileW(
         filePath.c_str(),
@@ -122,6 +197,16 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
         std::cout << "Executable wipe incomplete due to write failure\n";
 }
 
+/**
+ * @brief Lists and wipes a target process.
+ *
+ * This function lists a set of whitelisted anti-cheat processes that are
+ * currently running and allows the user to select one to terminate and wipe.
+ * The function will then attempt to terminate the process and securely wipe
+ * the executable file from disk. It will first attempt a driver-assisted
+ * termination, and if that fails, it will fall back to a user-mode
+ * termination.
+ */
 void ListAndWipeProcess()
 {
     static const std::vector<std::wstring> allowedExecutables = {
@@ -245,6 +330,12 @@ void ListAndWipeProcess()
     SecureWipeFile(exePathStr, fileSize);
 }
 
+/**
+ * @brief The main menu loop.
+ *
+ * This function displays the main menu of options to the user and handles
+ * their input.
+ */
 void RunMenu()
 {
     int choice = -1;
@@ -310,6 +401,14 @@ void RunMenu()
     }
 }
 
+/**
+ * @brief Checks if the process is running as the SYSTEM account.
+ *
+ * This function checks the token of the current process to see if it is
+ * running as the NT AUTHORITY\SYSTEM account.
+ *
+ * @return true if the process is running as SYSTEM, false otherwise.
+ */
 bool IsSystemAccount()
 {
     HANDLE hToken = nullptr;
@@ -339,6 +438,14 @@ bool IsSystemAccount()
     return isSystem;
 }
 
+/**
+ * @brief The main entry point for the application.
+ *
+ * This function checks if the application is running as the SYSTEM account,
+ * registers the exit and console handlers, and then runs the main menu.
+ *
+ * @return 0 on success, 1 on error.
+ */
 int main()
 {
     if (!IsSystemAccount()) {

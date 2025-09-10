@@ -1,11 +1,24 @@
+/**
+ * @file AntiTamper.cpp
+ * @brief Implements anti-tampering features for the driver.
+ */
+
 #include <ntifs.h>
 #include <ntstrsafe.h>
-#include "../include/DriverDefs.h"
+#include "DriverDefs.h"
 
 #ifndef BYTE
 typedef unsigned char BYTE;
 #endif
+
+//
+// External function prototypes
+//
 extern UCHAR* PsGetProcessImageFileName(PEPROCESS Process);
+
+//
+// Global variables
+//
 volatile LONG g_IntegrityOk = TRUE;
 PVOID g_DriverBase = nullptr;
 SIZE_T g_DriverSize = 0;
@@ -15,6 +28,10 @@ KEVENT g_StopEvent;
 BOOLEAN g_EnableWatchdog = TRUE;
 WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x64-Release.exe";
 
+/**
+ * @var crc32_table
+ * @brief A pre-calculated table for CRC32 checksums.
+ */
 const ULONG crc32_table[256] = {
     0x00000000L,0x77073096L,0xee0e612cL,0x990951baL,0x076dc419L,0x706af48fL,0xe963a535L,0x9e6495a3L,
     0x0edb8832L,0x79dcb8a4L,0xe0d5e91eL,0x97d2d988L,0x09b64c2bL,0x7eb17cbdL,0xe7b82d07L,0x90bf1d91L,
@@ -50,7 +67,13 @@ const ULONG crc32_table[256] = {
     0xb3667a2eL,0xc4614ab8L,0x5d681b02L,0x2a6f2b94L,0xb40bbe37L,0xc30c8ea1L,0x5a05df1bL,0x2d02ef8d
 };
 
-
+/**
+ * @brief Calculates the CRC32 checksum of a buffer.
+ *
+ * @param data A pointer to the data to checksum.
+ * @param length The length of the data in bytes.
+ * @return The CRC32 checksum.
+ */
 ULONG Crc32(const void* data, SIZE_T length)
 {
     const BYTE* buf = (const BYTE*)data;
@@ -64,6 +87,16 @@ ULONG Crc32(const void* data, SIZE_T length)
     return ~crc;
 }
 
+/**
+ * @brief Calculates an obfuscated CRC32 checksum.
+ *
+ * This function first calculates the CRC32 checksum and then XORs it with a
+ * constant value to make it harder to predict.
+ *
+ * @param data A pointer to the data to checksum.
+ * @param length The length of the data in bytes.
+ * @return The obfuscated CRC32 checksum.
+ */
 ULONG ObfuscatedCrc32(const void* data, SIZE_T length)
 {
     // Simple obfuscation: XOR with a constant
@@ -71,6 +104,14 @@ ULONG ObfuscatedCrc32(const void* data, SIZE_T length)
     return crc ^ 0xA5A5A5A5;
 }
 
+/**
+ * @brief Checks if the current process is the manager application.
+ *
+ * This function compares the name of the current process with the protected
+ * process name.
+ *
+ * @return TRUE if the current process is the manager, FALSE otherwise.
+ */
 BOOLEAN IsManagerProcess()
 {
     PEPROCESS process = PsGetCurrentProcess();
@@ -92,6 +133,15 @@ BOOLEAN IsManagerProcess()
     return FALSE;
 }
 
+/**
+ * @brief Checks if a process is a trusted Windows process.
+ *
+ * This function checks the name of a process to see if it is a known, trusted
+ * Windows system process.
+ *
+ * @param process A pointer to the EPROCESS object of the process to check.
+ * @return TRUE if the process is trusted, FALSE otherwise.
+ */
 BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
 {
     UCHAR* imageName = PsGetProcessImageFileName(process);
@@ -106,7 +156,15 @@ BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
     return FALSE;
 }
 
-// Swap memory page with random data
+/**
+ * @brief Swaps a memory page with random data.
+ *
+ * This function overwrites a page of memory with random data. This can be
+ * used to obfuscate the contents of memory.
+ *
+ * @param address The starting address of the memory page.
+ * @param size The size of the memory page in bytes.
+ */
 VOID SwapMemoryPage(PVOID address, SIZE_T size)
 {
     PMDL mdl = IoAllocateMdl(address, (ULONG)size, FALSE, FALSE, NULL);
@@ -128,21 +186,62 @@ VOID SwapMemoryPage(PVOID address, SIZE_T size)
     IoFreeMdl(mdl);
 }
 
-// Backup and restore memory page
+/**
+ * @brief Backs up a memory page.
+ *
+ * This function copies the contents of a memory page to a backup buffer.
+ *
+ * @param address The starting address of the memory page.
+ * @param size The size of the memory page in bytes.
+ * @param backup A pointer to the backup buffer.
+ */
 VOID BackupMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
 {
     RtlCopyMemory(backup, address, size);
 }
 
+/**
+ * @brief Restores a memory page from a backup.
+ *
+ * This function copies the contents of a backup buffer to a memory page.
+ *
+ * @param address The starting address of the memory page.
+ * @param size The size of the memory page in bytes.
+ * @param backup A pointer to the backup buffer.
+ */
 VOID RestoreMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
 {
     RtlCopyMemory(address, backup, size);
 }
 
-// Main memory access handler with rate limiting
+/**
+ * @var g_UnauthorizedAccessCount
+ * @brief A counter for unauthorized memory accesses.
+ */
 static LONG g_UnauthorizedAccessCount = 0;
+
+/**
+ * @def MAX_UNAUTHORIZED_ACCESS
+ * @brief The maximum number of unauthorized memory accesses to log before
+ * suppressing further events.
+ */
 #define MAX_UNAUTHORIZED_ACCESS 100
 
+/**
+ * @brief A handler for memory access events.
+ *
+ * This function is called when a memory access is detected. It checks if the
+ * access is from a trusted process and, if not, it swaps the memory page to
+ * obfuscate its contents.
+ *
+ * @param requestor A pointer to the EPROCESS object of the process that is
+ * requesting the memory access.
+ * @param target A pointer to the EPROCESS object of the process that is the
+ * target of the memory access.
+ * @param address The starting address of the memory access.
+ * @param size The size of the memory access in bytes.
+ * @param isWrite TRUE if the access is a write, FALSE otherwise.
+ */
 VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T size, BOOLEAN isWrite)
 {
     UCHAR* targetName = PsGetProcessImageFileName(target);
@@ -187,6 +286,15 @@ VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T
     }
 }
 
+/**
+ * @brief The main function for the integrity check thread.
+ *
+ * This thread periodically calculates the CRC32 checksum of the driver's
+ * image and compares it to the expected value. If the checksums do not
+ * match, it bugchecks the system.
+ *
+ * @param StartContext The start context for the thread (unused).
+ */
 VOID IntegrityThread(_In_ PVOID StartContext)
 {
     UNREFERENCED_PARAMETER(StartContext);
@@ -219,6 +327,15 @@ VOID IntegrityThread(_In_ PVOID StartContext)
     PsTerminateSystemThread(STATUS_SUCCESS);
 }
 
+/**
+ * @brief Initializes the integrity check.
+ *
+ * This function stores the driver's base address and size, and calculates
+ * the initial CRC32 checksum.
+ *
+ * @param base The base address of the driver image.
+ * @param size The size of the driver image in bytes.
+ */
 VOID InitializeIntegrityCheck(PVOID base, SIZE_T size)
 {
     g_DriverBase = base;
@@ -226,6 +343,12 @@ VOID InitializeIntegrityCheck(PVOID base, SIZE_T size)
     g_ExpectedCrc = ObfuscatedCrc32(g_DriverBase, g_DriverSize);
 }
 
+/**
+ * @brief Reads configuration settings from the registry.
+ *
+ * This function reads the `EnableWatchdog` and `ProtectedProcessName` values
+ * from the driver's service key in the registry.
+ */
 VOID ReadConfigFromRegistry()
 {
     UNICODE_STRING regPath = RTL_CONSTANT_STRING(L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\EzAntiAntiCheatDriver");
@@ -269,6 +392,14 @@ VOID ReadConfigFromRegistry()
     }
 }
 
+/**
+ * @brief Starts the integrity check thread.
+ *
+ * This function initializes and starts the system thread that periodically
+ * checks the integrity of the driver's code.
+ *
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 NTSTATUS StartIntegrityThread()
 {
     NTSTATUS status = STATUS_SUCCESS;
@@ -295,6 +426,11 @@ NTSTATUS StartIntegrityThread()
     return STATUS_SUCCESS;
 }
 
+/**
+ * @brief Stops the integrity check thread.
+ *
+ * This function signals the integrity check thread to stop.
+ */
 VOID StopIntegrityThread()
 {
     KeSetEvent(&g_StopEvent, IO_NO_INCREMENT, FALSE);

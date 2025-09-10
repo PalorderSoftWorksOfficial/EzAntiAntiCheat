@@ -1,7 +1,13 @@
+/**
+ * @file ControllerDefs.h
+ * @brief Definitions for the user-mode controller application.
+ */
+
 #pragma once
 
 #include <winioctl.h>
 
+// Undefine common macros that might conflict with Windows headers.
 #ifdef Enabled
 #undef Enabled
 #endif
@@ -22,8 +28,15 @@
 #undef Set
 #endif
 
+/**
+ * @def DRIVER_SERVICE_NAME
+ * @brief The name of the driver service to be installed.
+ */
 #define DRIVER_SERVICE_NAME L"EzAntiAntiCheatDriver"
 
-#define IOCTL_ENABLE_PROTECTION CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_DISABLE_PROTECTION CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS)
+/**
+ * @def DRIVER_SYMBOLIC_LINK
+ * @brief The symbolic link to the driver's device object.
+ * This is the path used by user-mode applications to open a handle to the driver.
+ */
 #define DRIVER_SYMBOLIC_LINK L"\\\\.\\EzAntiAntiCheatDriver"

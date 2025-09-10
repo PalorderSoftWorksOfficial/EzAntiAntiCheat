@@ -1,8 +1,14 @@
-﻿#include <windows.h>
+/**
+ * @file DriverLoader.cpp
+ * @brief Implements functions for loading, unloading, and managing the driver service.
+ */
+
+#include <windows.h>
 #include <iostream>
 #include <string>
 #include <strsafe.h>
 
+// Undefine common macros that might conflict.
 #ifdef Enabled
 #undef Enabled
 #endif
@@ -19,12 +25,34 @@
 #undef Size
 #endif
 
-#include "../include/ControllerDefs.h"
+#include "ControllerDefs.h"
 
-// Globals
+//
+// Global variables
+//
+
+/**
+ * @var g_ServiceInstalled
+ * @brief A flag indicating whether the service is currently installed.
+ */
 extern "C" bool g_ServiceInstalled = false;
+
+/**
+ * @var g_hService
+ * @brief A handle to the driver service.
+ */
 extern "C" SC_HANDLE g_hService = nullptr;
+
+/**
+ * @var g_hSCManager
+ * @brief A handle to the Service Control Manager.
+ */
 extern "C" SC_HANDLE g_hSCManager = nullptr;
+
+
+//
+// Driver file names for different architectures
+//
 
 #if defined(_M_ARM64)
 #ifdef _DEBUG
@@ -50,6 +78,7 @@ const std::wstring DRIVER_FILE_NAME = L"EzAntiAntiCheatDriver-x86-Release.sys";
 #else
 #error Unsupported architecture
 #endif
+
 #if defined(_M_ARM64)
 #ifdef _DEBUG
 std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiCheatDriver-arm64-Debug.sys";
@@ -76,7 +105,12 @@ std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiChe
 #endif
 
 
-// Check if a service is running
+/**
+ * @brief Checks if a service is currently running.
+ *
+ * @param service A handle to the service.
+ * @return true if the service is running, false otherwise.
+ */
 bool IsServiceRunning(SC_HANDLE service)
 {
     SERVICE_STATUS_PROCESS ssp = { 0 };
@@ -89,6 +123,15 @@ bool IsServiceRunning(SC_HANDLE service)
     return false;
 }
 
+/**
+ * @brief Copies the driver file to the system's drivers directory.
+ *
+ * This function determines the correct path to the system's drivers directory
+ * (usually `C:\Windows\System32\drivers`) and copies the driver file to that
+ * location.
+ *
+ * @return true if the driver was copied successfully, false otherwise.
+ */
 bool CopyDriverToSystemDrivers()
 {
     wchar_t systemDir[MAX_PATH];
@@ -113,6 +156,15 @@ bool CopyDriverToSystemDrivers()
     return true;
 }
 
+/**
+ * @brief Installs and starts the driver service.
+ *
+ * This function opens the Service Control Manager, creates the driver service
+ * if it doesn't already exist, and starts the service.
+ *
+ * @return true if the service was installed and started successfully, false
+ * otherwise.
+ */
 bool InstallService()
 {
     g_hSCManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
@@ -219,6 +271,13 @@ bool InstallService()
     return true;
 }
 
+/**
+ * @brief Loads the driver.
+ *
+ * This function starts the driver service if it is not already running.
+ *
+ * @return true if the driver was loaded successfully, false otherwise.
+ */
 bool LoadDriver()
 {
     if (!g_hService)
@@ -252,6 +311,13 @@ bool LoadDriver()
     return true;
 }
 
+/**
+ * @brief Unloads the driver.
+ *
+ * This function stops and deletes the driver service.
+ *
+ * @return true if the driver was unloaded successfully, false otherwise.
+ */
 bool UnloadDriver()
 {
     if (!g_hService)

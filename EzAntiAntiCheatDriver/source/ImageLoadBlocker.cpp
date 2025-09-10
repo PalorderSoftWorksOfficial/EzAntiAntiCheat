@@ -1,18 +1,56 @@
+/**
+ * @file ImageLoadBlocker.cpp
+ * @brief Main driver file, implementing the DriverEntry, IRP handlers, and
+ * image load blocking.
+ */
+
 #include <ntifs.h>
 #include <ntstrsafe.h>
-#include "../include/DriverDefs.h"
-#include "../include/IoctlDefs.h"
+#include "DriverDefs.h"
+#include "IoctlDefs.h"
 
 #define DRIVER_TAG 'shLD'
+
+//
+// Function prototypes
+//
 NTSTATUS TerminateProcessById(HANDLE pid);
-// Global state
+
+//
+// Global variables
+//
+
+/**
+ * @var g_ProtectionEnabled
+ * @brief A flag indicating whether the image load protection is enabled.
+ * This is an atomic variable, modified by IOCTLs.
+ */
 static volatile LONG g_ProtectionEnabled = 0;
 
-// Device and symbolic link names
+/**
+ * @var g_DeviceObject
+ * @brief A pointer to the driver's device object.
+ * This is created in DriverEntry and deleted in DriverUnload.
+ */
 PDEVICE_OBJECT g_DeviceObject = nullptr;
+
+/**
+ * @var g_SymLinkName
+ * @brief The symbolic link to the driver's device object.
+ * This is the path that user-mode applications use to open a handle to the
+ * driver.
+ */
 UNICODE_STRING g_SymLinkName = RTL_CONSTANT_STRING(L"\\DosDevices\\EasyAntiAntiCheat.exe");
 
-// Helper: Check if caller is SYSTEM or trusted process
+/**
+ * @brief Checks if the caller of an IRP is the SYSTEM account or a trusted
+ * process.
+ *
+ * This is a security measure to ensure that only authorized processes can
+ * send IOCTLs to the driver.
+ *
+ * @return TRUE if the caller is trusted, FALSE otherwise.
+ */
 BOOLEAN IsCallerSystem()
 {
     PEPROCESS caller = PsGetCurrentProcess();
@@ -24,7 +62,15 @@ BOOLEAN IsCallerSystem()
     return FALSE;
 }
 
-// Helper: Remove critical flag from EPROCESS
+/**
+ * @brief Removes the critical process flag from a process.
+ *
+ * This function attempts to remove the critical process flag from a process,
+ * which would otherwise cause a bugcheck if the process is terminated.
+ *
+ * @param Process A pointer to the EPROCESS object of the target process.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 NTSTATUS RemoveCriticalFlag(PEPROCESS Process)
 {
     // Windows 10/11: EPROCESS + 0x2e0 is usually the critical flag (verify for your target build!)
@@ -40,7 +86,15 @@ NTSTATUS RemoveCriticalFlag(PEPROCESS Process)
     }
 }
 
-// Helper: Check if PID is safe to terminate
+/**
+ * @brief Checks if a process is safe to terminate.
+ *
+ * This function checks if the given process ID belongs to a critical system
+ * process that should not be terminated (e.g., `csrss.exe`, `wininit.exe`).
+ *
+ * @param pid The process ID to check.
+ * @return TRUE if the process is safe to terminate, FALSE otherwise.
+ */
 BOOLEAN IsSafeToTerminate(HANDLE pid)
 {
     if (pid == (HANDLE)0 || pid == (HANDLE)4) // System Idle or System process
@@ -62,7 +116,14 @@ BOOLEAN IsSafeToTerminate(HANDLE pid)
     return TRUE;
 }
 
-// Helper: Check for suspicious anti-tamper activity
+/**
+ * @brief Checks for suspicious anti-tamper activity.
+ *
+ * This function checks if any of the known anti-cheat services have been
+ * disabled in the registry, which could indicate tampering.
+ *
+ * @return TRUE if tampering is detected, FALSE otherwise.
+ */
 BOOLEAN IsAntiCheatTamperingDetected()
 {
     const wchar_t* services[] = { L"EasyAntiCheat", L"rbxhyperion", L"vgk", L"Vanguard"};
@@ -97,7 +158,15 @@ BOOLEAN IsAntiCheatTamperingDetected()
     return FALSE;
 }
 
-// Helper: Delete stubborn driver service registry key as last resort
+/**
+ * @brief Deletes a driver service's registry key.
+ *
+ * This function forcibly deletes the registry key for a given driver service.
+ * This should be used as a last resort to remove a stubborn driver.
+ *
+ * @param ServiceName The name of the service to delete.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 NTSTATUS DeleteDriverServiceRegistryKey(PCWSTR ServiceName)
 {
     if (_wcsicmp(ServiceName, L"EasyAntiCheat") != 0 &&
@@ -136,7 +205,18 @@ NTSTATUS DeleteDriverServiceRegistryKey(PCWSTR ServiceName)
     return status;
 }
 
-// Image load callback
+/**
+ * @brief The image load notify routine.
+ *
+ * This callback function is called by the system whenever a driver is loaded.
+ * It checks the driver's name against a blocklist and prevents it from
+ * loading if it matches.
+ *
+ * @param ImageName The name of the image being loaded.
+ * @param ProcessId The ID of the process that is loading the image.
+ * @param ImageInfo A pointer to a structure containing information about the
+ * image.
+ */
 extern "C" VOID ImageLoadNotify(
     PUNICODE_STRING ImageName,
     HANDLE ProcessId,
@@ -164,17 +244,34 @@ extern "C" VOID ImageLoadNotify(
     }
 }
 
+/**
+ * @brief Registers the image load notify routine.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 extern "C" NTSTATUS RegisterImageLoadNotify()
 {
     return PsSetLoadImageNotifyRoutine(ImageLoadNotify);
 }
 
+/**
+ * @brief Unregisters the image load notify routine.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 extern "C" NTSTATUS UnregisterImageLoadNotify()
 {
     return PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
 }
 
-// Create/Close handler
+/**
+ * @brief The IRP_MJ_CREATE and IRP_MJ_CLOSE dispatch routine.
+ *
+ * This function handles create and close requests to the driver. It simply
+ * completes the request with STATUS_SUCCESS.
+ *
+ * @param DeviceObject A pointer to the device object.
+ * @param Irp A pointer to the IRP.
+ * @return STATUS_SUCCESS.
+ */
 NTSTATUS DriverCreateClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
     UNREFERENCED_PARAMETER(DeviceObject);
@@ -185,7 +282,15 @@ NTSTATUS DriverCreateClose(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     return STATUS_SUCCESS;
 }
 
-// DeviceControl handler
+/**
+ * @brief The IRP_MJ_DEVICE_CONTROL dispatch routine.
+ *
+ * This function handles IOCTL requests sent to the driver.
+ *
+ * @param DeviceObject A pointer to the device.
+ * @param Irp A pointer to the IRP.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
     UNREFERENCED_PARAMETER(DeviceObject);
@@ -300,7 +405,15 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     return status;
 }
 
-// Helper: Terminate process by PID
+/**
+ * @brief Terminates a process by its ID.
+ *
+ * This function terminates the process with the specified ID after checking if
+ * it is safe to do so.
+ *
+ * @param pid The process ID to terminate.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 NTSTATUS TerminateProcessById(HANDLE pid)
 {
     if (!IsSafeToTerminate(pid))
@@ -317,7 +430,15 @@ NTSTATUS TerminateProcessById(HANDLE pid)
     return status;
 }
 
-// Unload routine
+/**
+ * @brief The driver unload routine.
+ *
+ * This function is called by the system when the driver is being unloaded.
+ * It unregisters the image load notify routine and deletes the device object
+ * and symbolic link.
+ *
+ * @param DriverObject A pointer to the driver object.
+ */
 VOID DriverUnload(PDRIVER_OBJECT DriverObject)
 {
     UnregisterImageLoadNotify();
@@ -326,7 +447,17 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject)
     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL, "[EzAntiAntiCheatDriver] Unloaded\n");
 }
 
-// Entry point
+/**
+ * @brief The main entry point for the driver.
+ *
+ * This function is called by the system when the driver is loaded. It
+ * creates the device object and symbolic link, sets up the IRP dispatch
+ * routines, and registers the image load notify routine.
+ *
+ * @param DriverObject A pointer to the driver object.
+ * @param RegistryPath A pointer to the driver's registry path.
+ * @return STATUS_SUCCESS on success, or an NTSTATUS error code on failure.
+ */
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
 {
     UNREFERENCED_PARAMETER(RegistryPath);
