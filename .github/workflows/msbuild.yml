@@ -19,29 +19,41 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
+      - name: Download and silently install latest WDK
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
 
-    - name: Restore NuGet packages
-      working-directory: ${{ github.workspace }}
-      run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+          # Download the latest WDK installer
+          $wdkInstaller = "$env:TEMP\WDKsetup.exe"
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2128854" -OutFile $wdkInstaller
 
-    - name: Build with MSBuild
-      working-directory: ${{ github.workspace }}
-      run: |
-        msbuild ${{ env.SOLUTION_FILE_PATH }} `
-          /m `
-          /p:Configuration=${{ env.BUILD_CONFIGURATION }} `
-          /p:Platform=${{ env.BUILD_PLATFORM }} `
-          /p:PreferredToolArchitecture=x64 `
-          /verbosity:minimal
+          # Silently install WDK
+          Start-Process $wdkInstaller -ArgumentList "/quiet /norestart" -Wait
 
-    - name: Upload Build Artifacts lol
-      uses: actions/upload-artifact@v4
-      with:
-        name: EzAntiAntiCheat-Build
-        path: |
-          ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.sys
-          ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.exe
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Restore NuGet packages
+        working-directory: ${{ github.workspace }}
+        run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+
+      - name: Build with MSBuild
+        working-directory: ${{ github.workspace }}
+        run: |
+          msbuild ${{ env.SOLUTION_FILE_PATH }} `
+            /m `
+            /p:Configuration=${{ env.BUILD_CONFIGURATION }} `
+            /p:Platform=${{ env.BUILD_PLATFORM }} `
+            /p:PreferredToolArchitecture=x64 `
+            /verbosity:minimal
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EzAntiAntiCheat-Build
+          path: |
+            ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.sys
+            ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.exe
