@@ -19,29 +19,56 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+      # 1. Checkout repository
+      - uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.0.2
+      # 2. Setup MSBuild
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.0.2
 
-    - name: Restore NuGet packages
-      working-directory: ${{ github.workspace }}
-      run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+      # 3. Detect latest WDK installation dynamically
+      - name: Detect latest WDK
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Use vswhere to find latest VS with WDK
+          $vsPath = & "C:\Program Files\Chocolatey\bin\vswhere.exe" -products * -requires Microsoft.Component.WindowsDriverKit -property installationPath -latest
+          if (-not $vsPath) { throw "WDK not found" }
+          Write-Host "Visual Studio WDK path: $vsPath"
 
-    - name: Build with MSBuild
-      working-directory: ${{ github.workspace }}
-      run: |
-        msbuild ${{ env.SOLUTION_FILE_PATH }} `
-          /m `
-          /p:Configuration=${{ env.BUILD_CONFIGURATION }} `
-          /p:Platform=${{ env.BUILD_PLATFORM }} `
-          /p:PreferredToolArchitecture=x64 `
-          /verbosity:minimal
+          # Detect the latest WDK Include folder
+          $wdkIncludeRoot = Join-Path $vsPath "WDK\10.0\Include"
+          if (-not (Test-Path $wdkIncludeRoot)) { throw "WDK include folder not found" }
+          Write-Host "WDK include folder: $wdkIncludeRoot"
 
-    - name: Upload Build Artifacts lol
-      uses: actions/upload-artifact@v4
-      with:
-        name: EzAntiAntiCheat-Build
-        path: |
-          ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.sys
-          ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.exe
+          # Export for MSBuild / vcxproj
+          echo "WDK_INCLUDE=$wdkIncludeRoot" >> $env:GITHUB_ENV
+          echo "WDKContentRoot=$vsPath\WDK\10.0" >> $env:GITHUB_ENV
+
+      # 4. Restore NuGet packages
+      - name: Restore NuGet packages
+        working-directory: ${{ github.workspace }}
+        run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+
+      # 5. Build solution with MSBuild
+      - name: Build with MSBuild
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          msbuild ${{ env.SOLUTION_FILE_PATH }} `
+            /m `
+            /p:Configuration=${{ env.BUILD_CONFIGURATION }} `
+            /p:Platform=${{ env.BUILD_PLATFORM }} `
+            /p:PreferredToolArchitecture=x64 `
+            /p:WDKContentRoot=$env:WDKContentRoot `
+            /p:AdditionalIncludeDirectories="$env:WDK_INCLUDE\km;$env:WDK_INCLUDE\shared" `
+            /verbosity:minimal
+
+      # 6. Upload built artifacts
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EzAntiAntiCheat-Build
+          path: |
+            ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.sys
+            ${{ github.workspace }}/${{ env.BUILD_PLATFORM }}/${{ env.BUILD_CONFIGURATION }}/*.exe
