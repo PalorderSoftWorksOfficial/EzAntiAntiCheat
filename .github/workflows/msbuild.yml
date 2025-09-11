@@ -31,17 +31,21 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          # Use vswhere to find latest VS with WDK
-          $vsPath = & "C:\Program Files\Chocolatey\bin\vswhere.exe" -products * -requires Microsoft.Component.WindowsDriverKit -property installationPath -latest
+          # Use vswhere from default VS installer location
+          $vsWherePath = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vsWherePath)) { throw "vswhere.exe not found" }
+
+          # Find latest VS with WDK
+          $vsPath = & $vsWherePath -products * -requires Microsoft.Component.WindowsDriverKit -property installationPath -latest
           if (-not $vsPath) { throw "WDK not found" }
           Write-Host "Visual Studio WDK path: $vsPath"
 
-          # Detect the latest WDK Include folder
+          # Detect latest WDK Include folder
           $wdkIncludeRoot = Join-Path $vsPath "WDK\10.0\Include"
           if (-not (Test-Path $wdkIncludeRoot)) { throw "WDK include folder not found" }
           Write-Host "WDK include folder: $wdkIncludeRoot"
 
-          # Export for MSBuild / vcxproj
+          # Export for MSBuild
           echo "WDK_INCLUDE=$wdkIncludeRoot" >> $env:GITHUB_ENV
           echo "WDKContentRoot=$vsPath\WDK\10.0" >> $env:GITHUB_ENV
 
