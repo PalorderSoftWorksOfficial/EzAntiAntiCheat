@@ -1,18 +1,45 @@
 #include <ntifs.h>
 #include <ntstrsafe.h>
 #include "../include/DriverDefs.h"
-
 #ifndef BYTE
 typedef unsigned char BYTE;
 #endif
+
+// --- Globals ---
 extern UCHAR* PsGetProcessImageFileName(PEPROCESS Process);
+
+/**
+ * @brief Indicates if driver integrity is OK (TRUE) or compromised (FALSE).
+ */
 volatile LONG g_IntegrityOk = TRUE;
+
+/**
+ * @brief Base address and size of the driver image in memory.
+ */
 PVOID g_DriverBase = nullptr;
 SIZE_T g_DriverSize = 0;
+
+/**
+ * @brief Expected CRC value for the driver image (obfuscated).
+ */
 ULONG g_ExpectedCrc = 0;
+
+/**
+ * @brief Handle to the integrity watchdog thread.
+ */
 HANDLE g_IntegrityThreadHandle = nullptr;
+
+/**
+ * @brief Event to signal the watchdog thread to stop.
+ */
 KEVENT g_StopEvent;
+
+/**
+ * @brief If TRUE, the watchdog thread is enabled.
+ */
 BOOLEAN g_EnableWatchdog = TRUE;
+
+// --- Protected process name (set by architecture/config) ---
 #if defined(_M_ARM64)
 #ifdef _DEBUG
 WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-arm64-Debug.exe";
@@ -38,7 +65,7 @@ WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x86-Release.exe";
 #error Unsupported architecture
 #endif
 
-
+// --- CRC32 Table ---
 const ULONG crc32_table[256] = {
     0x00000000L,0x77073096L,0xee0e612cL,0x990951baL,0x076dc419L,0x706af48fL,0xe963a535L,0x9e6495a3L,
     0x0edb8832L,0x79dcb8a4L,0xe0d5e91eL,0x97d2d988L,0x09b64c2bL,0x7eb17cbdL,0xe7b82d07L,0x90bf1d91L,
@@ -73,13 +100,101 @@ const ULONG crc32_table[256] = {
     0xbdbdf21cL,0xcabac28aL,0x53b39330L,0x24b4a3a6L,0xbad03605L,0xcdd70693L,0x54de5729L,0x23d967bfL,
     0xb3667a2eL,0xc4614ab8L,0x5d681b02L,0x2a6f2b94L,0xb40bbe37L,0xc30c8ea1L,0x5a05df1bL,0x2d02ef8d
 };
+/**
+ * @brief Checks registry ACLs for SYSTEM-only write access.
+ *        Logs a warning if non-SYSTEM accounts have write access.
+ */
+VOID CheckRegistryAcls(HANDLE hKey)
+{
+    PSECURITY_DESCRIPTOR pSD = nullptr;
+    ULONG sdSize = 0;
+    NTSTATUS status = ZwQuerySecurityObject(
+        hKey,
+        DACL_SECURITY_INFORMATION,
+        nullptr,
+        0,
+        &sdSize
+    );
 
+    if (status != STATUS_BUFFER_TOO_SMALL) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Failed to query registry security descriptor size (0x%X)\n", status);
+        return;
+    }
 
+    pSD = (PSECURITY_DESCRIPTOR)ExAllocatePool2(PagedPool, sdSize, 'rSDC');
+    if (!pSD) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Failed to allocate memory for security descriptor\n");
+        return;
+    }
+
+    status = ZwQuerySecurityObject(
+        hKey,
+        DACL_SECURITY_INFORMATION,
+        pSD,
+        sdSize,
+        &sdSize
+    );
+
+    if (!NT_SUCCESS(status)) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Failed to query registry security descriptor (0x%X)\n", status);
+        ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+        return;
+    }
+
+    PACL pDacl = nullptr;
+    BOOLEAN daclPresent = FALSE, daclDefaulted = FALSE;
+    if (!NT_SUCCESS(RtlGetDaclSecurityDescriptor(pSD, &daclPresent, &pDacl, &daclDefaulted)) || !daclPresent || !pDacl) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] No DACL present on registry key!\n");
+        ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+        return;
+    }
+
+    // Well-known SID for SYSTEM: S-1-5-18
+    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+    UCHAR systemSidBuffer[SECURITY_MAX_SID_SIZE];
+    PSID systemSid = (PSID)systemSidBuffer;
+    NTSTATUS sidStatus = RtlInitializeSid(systemSid, &NtAuthority, 1);
+    if (!NT_SUCCESS(sidStatus)) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Failed to initialize SYSTEM SID\n");
+        ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+        return;
+    }
+    *RtlSubAuthoritySid(systemSid, 0) = SECURITY_LOCAL_SYSTEM_RID;
+
+    // Scan DACL for non-SYSTEM ACEs with write access
+    for (ULONG i = 0; i < pDacl->AceCount; ++i) {
+        PACE_HEADER aceHeader = (PACE_HEADER)((PUCHAR)pDacl + sizeof(ACL));
+        aceHeader = (PACE_HEADER)((PUCHAR)aceHeader + i * sizeof(ACCESS_ALLOWED_ACE)); // assumes ACCESS_ALLOWED_ACE
+
+        if (aceHeader->AceType == ACCESS_ALLOWED_ACE_TYPE) {
+            PACCESS_ALLOWED_ACE ace = (PACCESS_ALLOWED_ACE)aceHeader;
+            PSID aceSid = (PSID)&ace->SidStart;
+
+            // Check for write permissions
+            if (ace->Mask & (KEY_WRITE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_CREATE_LINK | KEY_ALL_ACCESS)) {
+                if (!RtlEqualSid(aceSid, systemSid)) {
+                    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
+                        "[EasyAntiAntiCheat] Registry key has non-SYSTEM write ACE! This is a security risk.\n");
+                }
+            }
+        }
+    }
+
+    ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+}
+
+ /**
+ * @brief Calculates CRC32 for a buffer.
+ */
 ULONG Crc32(const void* data, SIZE_T length)
 {
     const BYTE* buf = (const BYTE*)data;
     ULONG crc = 0xFFFFFFFF;
-
     for (SIZE_T i = 0; i < length; i++)
     {
         BYTE index = (BYTE)((crc ^ buf[i]) & 0xFF);
@@ -88,20 +203,24 @@ ULONG Crc32(const void* data, SIZE_T length)
     return ~crc;
 }
 
+/**
+ * @brief Obfuscates CRC32 value with a constant.
+ */
 ULONG ObfuscatedCrc32(const void* data, SIZE_T length)
 {
-    // Simple obfuscation: XOR with a constant
     ULONG crc = Crc32(data, length);
     return crc ^ 0xA5A5A5A5;
 }
 
+/**
+ * @brief Checks if the current process is the protected manager process.
+ */
 BOOLEAN IsManagerProcess()
 {
     PEPROCESS process = PsGetCurrentProcess();
     UCHAR* imageName = PsGetProcessImageFileName(process);
 
     if (imageName)
-
     {
         ANSI_STRING ansiName;
         UNICODE_STRING unicodeName;
@@ -116,12 +235,14 @@ BOOLEAN IsManagerProcess()
     return FALSE;
 }
 
+/**
+ * @brief Checks if a process is a trusted Windows system process.
+ */
 BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
 {
     UCHAR* imageName = PsGetProcessImageFileName(process);
     ULONG pid = (ULONG)(ULONG_PTR)PsGetProcessId(process);
     if (!imageName || pid == 0 || pid == 4) return FALSE;
-    // Add more trusted names as needed
     if (_stricmp((const char*)imageName, "System") == 0 ||
         _stricmp((const char*)imageName, "svchost.exe") == 0 ||
         _stricmp((const char*)imageName, "wininit.exe") == 0 ||
@@ -130,7 +251,9 @@ BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
     return FALSE;
 }
 
-// Swap memory page with random data
+/**
+ * @brief Overwrites a memory page with random data.
+ */
 VOID SwapMemoryPage(PVOID address, SIZE_T size)
 {
     PMDL mdl = IoAllocateMdl(address, (ULONG)size, FALSE, FALSE, NULL);
@@ -152,21 +275,29 @@ VOID SwapMemoryPage(PVOID address, SIZE_T size)
     IoFreeMdl(mdl);
 }
 
-// Backup and restore memory page
+/**
+ * @brief Backs up a memory page.
+ */
 VOID BackupMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
 {
     RtlCopyMemory(backup, address, size);
 }
 
+/**
+ * @brief Restores a memory page from backup.
+ */
 VOID RestoreMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
 {
     RtlCopyMemory(address, backup, size);
 }
 
-// Main memory access handler with rate limiting
+// --- Unauthorized access rate limiting ---
 static LONG g_UnauthorizedAccessCount = 0;
 #define MAX_UNAUTHORIZED_ACCESS 100
 
+/**
+ * @brief Handles memory access events, swaps memory if unauthorized.
+ */
 VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T size, BOOLEAN isWrite)
 {
     UCHAR* targetName = PsGetProcessImageFileName(target);
@@ -204,7 +335,7 @@ VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T
             delay.QuadPart = -10 * 1000; // 1ms
             KeDelayExecutionThread(KernelMode, FALSE, &delay);
             RestoreMemoryPage(address, size, backup);
-            ExFreePool(backup);
+            ExFreePool2(backup, POOL_FLAG_NON_PAGED, 0);
         }
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
             "[EasyAntiAntiCheat] Memory access to controller executable detected, swapped and restored page at %p\n", address);
@@ -224,15 +355,21 @@ VOID IntegrityThread(_In_ PVOID StartContext)
         {
             ULONG currentCrc = ObfuscatedCrc32(g_DriverBase, g_DriverSize);
             if (currentCrc != g_ExpectedCrc)
+            {
                 InterlockedExchange(&g_IntegrityOk, FALSE);
+                DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                    "[EasyAntiAntiCheat] Driver integrity check failed! CRC mismatch detected.\n");
+            }
         }
 
+        // Take action if integrity is compromised
         LONG integrity = InterlockedCompareExchange(&g_IntegrityOk, 1, 1);
         if (integrity == FALSE)
         {
             InterlockedExchange(&g_IntegrityOk, TRUE);
-            if (InterlockedCompareExchange(&g_IntegrityOk, 1, 1) == FALSE)
-                KeBugCheckEx(MY_BUGCHECK_CODE, 0, 0, 0, 0);
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                "[EasyAntiAntiCheat] Integrity compromised! Initiating bugcheck.\n");
+            KeBugCheckEx(MY_BUGCHECK_CODE, 0, 0, 0, 0);
         }
 
         NTSTATUS waitStatus = KeWaitForSingleObject(&g_StopEvent, Executive, KernelMode, FALSE, &interval);
@@ -243,6 +380,9 @@ VOID IntegrityThread(_In_ PVOID StartContext)
     PsTerminateSystemThread(STATUS_SUCCESS);
 }
 
+/**
+ * @brief Initializes integrity check with driver base and size.
+ */
 VOID InitializeIntegrityCheck(PVOID base, SIZE_T size)
 {
     g_DriverBase = base;
@@ -250,6 +390,9 @@ VOID InitializeIntegrityCheck(PVOID base, SIZE_T size)
     g_ExpectedCrc = ObfuscatedCrc32(g_DriverBase, g_DriverSize);
 }
 
+/**
+ * @brief Reads configuration from registry and checks ACLs.
+ */
 VOID ReadConfigFromRegistry()
 {
     UNICODE_STRING regPath = RTL_CONSTANT_STRING(L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\EzAntiAntiCheatDriver");
@@ -288,11 +431,16 @@ VOID ReadConfigFromRegistry()
             }
         }
 
-        // TODO: Check registry ACLs for SYSTEM-only access (requires more code)
+        // Check registry ACLs for SYSTEM-only access
+        CheckRegistryAcls(hKey);
+
         ZwClose(hKey);
     }
 }
 
+/**
+ * @brief Starts the integrity watchdog thread.
+ */
 NTSTATUS StartIntegrityThread()
 {
     NTSTATUS status = STATUS_SUCCESS;
@@ -319,6 +467,9 @@ NTSTATUS StartIntegrityThread()
     return STATUS_SUCCESS;
 }
 
+/**
+ * @brief Signals the watchdog thread to stop.
+ */
 VOID StopIntegrityThread()
 {
     KeSetEvent(&g_StopEvent, IO_NO_INCREMENT, FALSE);
