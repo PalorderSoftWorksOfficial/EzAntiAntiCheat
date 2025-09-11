@@ -74,7 +74,7 @@ std::wstring systemDriverPath = L"\\SystemRoot\\System32\\drivers\\EzAntiAntiChe
 #else
 #error Unsupported architecture
 #endif
-
+// this is needed otherwise the shit will get an heartattack
 
 // Check if a service is running
 bool IsServiceRunning(SC_HANDLE service)
@@ -125,7 +125,7 @@ bool InstallService()
     g_hService = OpenService(g_hSCManager, DRIVER_SERVICE_NAME, SERVICE_ALL_ACCESS);
     if (!g_hService)
     {
-        // Service does not exist, create it
+        // Service does not exist, create it :3
         if (!CopyDriverToSystemDrivers())
         {
             std::cout << "Failed to prepare driver\n";
@@ -172,6 +172,7 @@ bool InstallService()
         else
         {
             // Try to start service
+            // Programmer comment: Yeah you can see what the fuck it is :3
             if (!StartService(g_hService, 0, nullptr))
             {
                 DWORD err = GetLastError();
@@ -192,6 +193,7 @@ bool InstallService()
     }
 
     // Start the service if newly created
+    // Yup yup good comment.
     bool started = StartService(g_hService, 0, nullptr);
     if (!started)
     {

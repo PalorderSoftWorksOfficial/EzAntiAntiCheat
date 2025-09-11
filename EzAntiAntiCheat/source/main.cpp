@@ -14,7 +14,7 @@
 #include <csignal>
 #include <random>
 #include <limits>
-#include "../include/IoctlDefs.h"
+#include "IoctlDefs.h"
 #include "../include/ControllerDefs.h"
 // Global state
 bool g_ServiceInstalled = false;
@@ -109,7 +109,7 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
         for (auto& b : randomBuffer) b = static_cast<BYTE>(dis(gen));
         DWORD toWrite = static_cast<DWORD>(std::min<LONGLONG>(randomBuffer.size(), fileSize.QuadPart - totalWritten));
         if (!WriteFile(hFile, randomBuffer.data(), toWrite, &bytesWritten, nullptr) || bytesWritten != toWrite) {
-            std::cout << "Failed to write random data to file\n";
+            std::cout << "Failed to write null data to file\n";
             writeFailed = true;
             break;
         }

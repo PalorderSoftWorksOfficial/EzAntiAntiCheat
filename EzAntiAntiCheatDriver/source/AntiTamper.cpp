@@ -13,7 +13,31 @@ ULONG g_ExpectedCrc = 0;
 HANDLE g_IntegrityThreadHandle = nullptr;
 KEVENT g_StopEvent;
 BOOLEAN g_EnableWatchdog = TRUE;
+#if defined(_M_ARM64)
+#ifdef _DEBUG
+WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-arm64-Debug.exe";
+#else
+WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-arm64-Release.exe";
+#endif
+
+#elif defined(_M_X64) || defined(_WIN64)
+#ifdef _DEBUG
+WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x64-Debug.exe";
+#else
 WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x64-Release.exe";
+#endif
+
+#elif defined(_M_IX86)
+#ifdef _DEBUG
+WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x86-Debug.exe";
+#else
+WCHAR g_ProtectedProcessName[260] = L"EzAntiAntiCheat-x86-Release.exe";
+#endif
+
+#else
+#error Unsupported architecture
+#endif
+
 
 const ULONG crc32_table[256] = {
     0x00000000L,0x77073096L,0xee0e612cL,0x990951baL,0x076dc419L,0x706af48fL,0xe963a535L,0x9e6495a3L,
