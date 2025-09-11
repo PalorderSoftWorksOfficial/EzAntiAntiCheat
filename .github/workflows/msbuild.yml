@@ -26,28 +26,23 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      # 3. Detect latest WDK installation dynamically
-      - name: Detect latest WDK
+      # 3. Install latest WDK silently
+      - name: Install latest WDK silently
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          # Use vswhere from default VS installer location
-          $vsWherePath = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
-          if (-not (Test-Path $vsWherePath)) { throw "vswhere.exe not found" }
-
-          # Find latest VS with WDK
-          $vsPath = & $vsWherePath -products * -requires Microsoft.Component.WindowsDriverKit -property installationPath -latest
-          if (-not $vsPath) { throw "WDK not found" }
-          Write-Host "Visual Studio WDK path: $vsPath"
-
-          # Detect latest WDK Include folder
-          $wdkIncludeRoot = Join-Path $vsPath "WDK\10.0\Include"
-          if (-not (Test-Path $wdkIncludeRoot)) { throw "WDK include folder not found" }
-          Write-Host "WDK include folder: $wdkIncludeRoot"
-
-          # Export for MSBuild
-          echo "WDK_INCLUDE=$wdkIncludeRoot" >> $env:GITHUB_ENV
-          echo "WDKContentRoot=$vsPath\WDK\10.0" >> $env:GITHUB_ENV
+          $wdkInstaller = "$env:TEMP\WDKsetup.exe"
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2128854" -OutFile $wdkInstaller
+          Start-Process -FilePath $wdkInstaller -ArgumentList "/quiet" -Wait
+          
+          # WDK installs by default in Program Files (x86)
+          $wdkPath = "C:\Program Files (x86)\Windows Kits\10"
+          if (-not (Test-Path $wdkPath)) { throw "WDK installation failed" }
+          Write-Host "WDK installed at $wdkPath"
+          
+          # Export paths for MSBuild
+          echo "WDKContentRoot=$wdkPath" >> $env:GITHUB_ENV
+          echo "WDK_INCLUDE=$wdkPath\Include" >> $env:GITHUB_ENV
 
       # 4. Restore NuGet packages
       - name: Restore NuGet packages
