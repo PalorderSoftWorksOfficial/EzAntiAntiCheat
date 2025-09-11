@@ -20,7 +20,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+    - name: Install latest Windows Driver Kit (WDK)
+      run: choco install windows-driver-kit --yes --force
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.0.2
 
