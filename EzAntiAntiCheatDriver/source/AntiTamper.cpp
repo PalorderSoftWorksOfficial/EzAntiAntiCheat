@@ -140,7 +140,7 @@ VOID CheckRegistryAcls(HANDLE hKey)
     if (!NT_SUCCESS(status)) {
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
             "[EasyAntiAntiCheat] Failed to query registry security descriptor (0x%X)\n", status);
-        ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+        ExFreePool2(pSD, POOL_FLAG_PAGED, NULL,NULL);
         return;
     }
 
@@ -149,7 +149,7 @@ VOID CheckRegistryAcls(HANDLE hKey)
     if (!NT_SUCCESS(RtlGetDaclSecurityDescriptor(pSD, &daclPresent, &pDacl, &daclDefaulted)) || !daclPresent || !pDacl) {
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
             "[EasyAntiAntiCheat] No DACL present on registry key!\n");
-        ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+        ExFreePool2(pSD, POOL_FLAG_PAGED, 0,NULL);
         return;
     }
 
@@ -161,7 +161,7 @@ VOID CheckRegistryAcls(HANDLE hKey)
     if (!NT_SUCCESS(sidStatus)) {
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
             "[EasyAntiAntiCheat] Failed to initialize SYSTEM SID\n");
-        ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+        ExFreePool2(pSD, POOL_FLAG_PAGED, NULL, NULL);
         return;
     }
     *RtlSubAuthoritySid(systemSid, 0) = SECURITY_LOCAL_SYSTEM_RID;
@@ -185,7 +185,7 @@ VOID CheckRegistryAcls(HANDLE hKey)
         }
     }
 
-    ExFreePool2(pSD, POOL_FLAG_PAGED, 0);
+    ExFreePool2(pSD, POOL_FLAG_PAGED, NULL, NULL);
 }
 
  /**
@@ -251,9 +251,12 @@ BOOLEAN IsTrustedWindowsProcess(PEPROCESS process)
     return FALSE;
 }
 
-/**
- * @brief Overwrites a memory page with random data.
- */
+// Pseudocode plan:
+// 1. The error is caused by writing past the end of the mapped buffer in SwapMemoryPage.
+// 2. The mapped buffer may be smaller than 'size' due to MDL mapping restrictions.
+// 3. Use MmGetMdlByteCount(mdl) to get the actual mapped size.
+// 4. Limit the loop to the minimum of 'size' and mapped byte count.
+
 VOID SwapMemoryPage(PVOID address, SIZE_T size)
 {
     PMDL mdl = IoAllocateMdl(address, (ULONG)size, FALSE, FALSE, NULL);
@@ -263,7 +266,9 @@ VOID SwapMemoryPage(PVOID address, SIZE_T size)
         MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
         PVOID mapped = MmMapLockedPagesSpecifyCache(mdl, KernelMode, MmCached, NULL, FALSE, NormalPagePriority);
         if (mapped) {
-            for (SIZE_T i = 0; i < size; ++i)
+            SIZE_T mappedSize = MmGetMdlByteCount(mdl);
+            SIZE_T safeSize = min(size, mappedSize);
+            for (SIZE_T i = 0; i < safeSize; ++i)
                 ((BYTE*)mapped)[i] = (BYTE)(KeQueryTimeIncrement() ^ (ULONG_PTR)&mapped ^ i);
             MmUnmapLockedPages(mapped, mdl);
         }
@@ -335,7 +340,7 @@ VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T
             delay.QuadPart = -10 * 1000; // 1ms
             KeDelayExecutionThread(KernelMode, FALSE, &delay);
             RestoreMemoryPage(address, size, backup);
-            ExFreePool2(backup, POOL_FLAG_NON_PAGED, 0);
+            ExFreePool2(backup, POOL_FLAG_NON_PAGED, NULL, NULL);
         }
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
             "[EasyAntiAntiCheat] Memory access to controller executable detected, swapped and restored page at %p\n", address);
