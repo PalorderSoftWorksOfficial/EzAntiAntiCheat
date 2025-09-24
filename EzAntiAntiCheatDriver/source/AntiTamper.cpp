@@ -4,7 +4,6 @@
 #ifndef BYTE
 typedef unsigned char BYTE;
 #endif
-
 // --- Globals ---
 extern UCHAR* PsGetProcessImageFileName(PEPROCESS Process);
 
@@ -166,28 +165,43 @@ VOID CheckRegistryAcls(HANDLE hKey)
     }
     *RtlSubAuthoritySid(systemSid, 0) = SECURITY_LOCAL_SYSTEM_RID;
 
-    // Scan DACL for non-SYSTEM ACEs with write access
+    bool onlySystemWrite = true;
     for (ULONG i = 0; i < pDacl->AceCount; ++i) {
         PACE_HEADER aceHeader = (PACE_HEADER)((PUCHAR)pDacl + sizeof(ACL));
-        aceHeader = (PACE_HEADER)((PUCHAR)aceHeader + i * sizeof(ACCESS_ALLOWED_ACE)); // assumes ACCESS_ALLOWED_ACE
-
+        aceHeader = (PACE_HEADER)((PUCHAR)aceHeader + i * sizeof(ACCESS_ALLOWED_ACE));
         if (aceHeader->AceType == ACCESS_ALLOWED_ACE_TYPE) {
             PACCESS_ALLOWED_ACE ace = (PACCESS_ALLOWED_ACE)aceHeader;
             PSID aceSid = (PSID)&ace->SidStart;
-
-            // Check for write permissions
             if (ace->Mask & (KEY_WRITE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_CREATE_LINK | KEY_ALL_ACCESS)) {
                 if (!RtlEqualSid(aceSid, systemSid)) {
+                    onlySystemWrite = false;
+                    // Convert SID to string for logging
+                    UNICODE_STRING sidString;
+                    if (NT_SUCCESS(RtlConvertSidToUnicodeString(&sidString, aceSid, TRUE))) {
+                        CHAR sidAnsi[128] = {0};
+                        RtlUnicodeToMultiByteN(sidAnsi, sizeof(sidAnsi), NULL, sidString.Buffer, sidString.Length);
+                        SetLastErrorLog(sidAnsi);
+                        RtlFreeUnicodeString(&sidString);
+                    } else {
+                        SetLastErrorLog("Unknown SID");
+                    }
                     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
                         "[EasyAntiAntiCheat] Registry key has non-SYSTEM write ACE! This is a security risk.\n");
+                    KeBugCheckEx(MY_BUGCHECK_CODE, 0, 0, 0, 0);
                 }
             }
         }
     }
+    if (!onlySystemWrite) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Refusing to operate due to insecure registry ACLs.\n");
+    }
 
-    ExFreePool2(pSD, POOL_FLAG_PAGED, NULL, NULL);
+    if (pSD) {
+        RtlSecureZeroMemory(pSD, sdSize);
+        ExFreePool2(pSD, POOL_FLAG_PAGED, NULL, NULL);
+    }
 }
-
  /**
  * @brief Calculates CRC32 for a buffer.
  */
@@ -275,7 +289,8 @@ VOID SwapMemoryPage(PVOID address, SIZE_T size)
         MmUnlockPages(mdl);
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
-        // Fail silently
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+            "[EasyAntiAntiCheat] Exception in SwapMemoryPage\n");
     }
     IoFreeMdl(mdl);
 }
@@ -420,7 +435,7 @@ VOID ReadConfigFromRegistry()
                 if (!g_EnableWatchdog)
                 {
                     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
-                        "[EasyAntiAntiCheat] Watchdog disabled via registry! This is a security risk.\n");
+                        "[EasyAntiAntiCheat] Watchdog disabled via registry! OH NO ME HEART STOP LULUAWEOHJWEIJHWERHEJAIHNIAERH IM FUCKING DIEING AOWEJHOEWARHOAHIERJAH.\n");
                 }
             }
         }
@@ -473,9 +488,15 @@ NTSTATUS StartIntegrityThread()
 }
 
 /**
- * @brief Signals the watchdog thread to stop.
+ * @brief Signals the watchdog thread to stop :3 WOOF WOOF
  */
 VOID StopIntegrityThread()
 {
     KeSetEvent(&g_StopEvent, IO_NO_INCREMENT, FALSE);
+}
+CHAR g_LastErrorLog[256] = {0};
+
+void SetLastErrorLog(const char* culpritSid) {
+    RtlStringCbPrintfA(g_LastErrorLog, sizeof(g_LastErrorLog),
+        "Registry ACL violation detected!\nCulprit SID: %s\n", culpritSid);
 }

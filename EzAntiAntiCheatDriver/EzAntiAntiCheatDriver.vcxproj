@@ -27,6 +27,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\shared\includes\IoctlDefs.h" />
     <ClInclude Include="include\DriverDefs.h" />
     <ClInclude Include="include\IoctlDefs.h" />
   </ItemGroup>

@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include <windows.h>
+#include <winreg.h>
 #include <algorithm>
 #undef max
 #undef min
@@ -16,6 +17,8 @@
 #include <limits>
 #include "IoctlDefs.h"
 #include "../include/ControllerDefs.h"
+#include <shellapi.h>
+
 // Global state
 bool g_ServiceInstalled = false;
 SC_HANDLE g_hService = nullptr;
@@ -24,7 +27,7 @@ SC_HANDLE g_hSCManager = nullptr;
 bool InstallService();
 bool LoadDriver();
 bool UnloadDriver();
-bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0);
+bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0, void* outBuf = nullptr, DWORD outBufSize = 0);
 void RunMenu();
 void CleanupOnExit()
 {
@@ -105,16 +108,22 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
     LONGLONG totalWritten = 0;
     bool writeFailed = false;
 
+    // Overwrite file with random data
     while (totalWritten < fileSize.QuadPart) {
         for (auto& b : randomBuffer) b = static_cast<BYTE>(dis(gen));
         DWORD toWrite = static_cast<DWORD>(std::min<LONGLONG>(randomBuffer.size(), fileSize.QuadPart - totalWritten));
         if (!WriteFile(hFile, randomBuffer.data(), toWrite, &bytesWritten, nullptr) || bytesWritten != toWrite) {
-            std::cout << "Failed to write null data to file\n";
+            std::cout << "Failed to write random data to file\n";
             writeFailed = true;
             break;
         }
         totalWritten += bytesWritten;
     }
+
+    // Truncate file to zero length
+    SetFilePointer(hFile, 0, nullptr, FILE_BEGIN);
+    SetEndOfFile(hFile);
+
     CloseHandle(hFile);
     if (!writeFailed)
         std::cout << "Executable securely wiped\n";
@@ -338,12 +347,116 @@ bool IsSystemAccount()
     CloseHandle(hToken);
     return isSystem;
 }
+bool EnsureTestSigningAndDisableSecureBoot()
+{
+    // Check Secure Boot status
+    bool secureBootEnabled = false;
+    HKEY hKey;
+    DWORD value = 0, valueSize = sizeof(DWORD);
+    LONG status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+        0, KEY_QUERY_VALUE, &hKey);
+    if (status == ERROR_SUCCESS) {
+        if (RegQueryValueExW(hKey, L"UEFISecureBootEnabled", nullptr, nullptr, (LPBYTE)&value, &valueSize) == ERROR_SUCCESS) {
+            secureBootEnabled = (value != 0);
+        }
+        RegCloseKey(hKey);
+    }
+
+    // Check Test Signing status
+    bool testSigningEnabled = false;
+    valueSize = sizeof(DWORD);
+    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Control\\SystemStartOptions",
+        0, KEY_QUERY_VALUE, &hKey);
+    if (status == ERROR_SUCCESS) {
+        WCHAR options[256] = {0};
+        DWORD optionsSize = sizeof(options);
+        if (RegQueryValueExW(hKey, L"SystemStartOptions", nullptr, nullptr, (LPBYTE)options, &optionsSize) == ERROR_SUCCESS) {
+            std::wstring opts(options);
+            if (opts.find(L"TESTSIGNING") != std::wstring::npos)
+                testSigningEnabled = true;
+        }
+        RegCloseKey(hKey);
+    }
+
+    // If Secure Boot is enabled, attempt to disable it (requires firmware interaction)
+    if (secureBootEnabled) {
+        std::cout << "Secure Boot is enabled. Please disable it in your UEFI firmware settings.\n";
+        std::cin.get();
+        return false;
+    }
+
+    // If Test Signing is not enabled, enable it
+    if (!testSigningEnabled) {
+        std::cout << "Test Signing is not enabled. Attempting to enable...\n";
+        // Enable test signing using bcdedit
+        int ret = system("bcdedit /set testsigning on");
+        if (ret != 0) {
+            std::cout << "Failed to enable test signing. Run as administrator.\n";
+            std::cin.get();
+            return false;
+        }
+        std::cout << "Test signing enabled. Please reboot your system for changes to take effect.\n";
+        std::cin.get();
+        return false;
+    }
+
+    std::cout << "Secure Boot is disabled and Test Signing is enabled.\n";
+    return true;
+}
+
+void RetrieveAndWriteErrorLog() {
+    char errorLog[256] = {0};
+    if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog))) {
+        if (strlen(errorLog) > 0) {
+            std::ofstream logFile("errorlog.txt", std::ios::out | std::ios::trunc);
+            logFile << errorLog;
+            logFile.close();
+        }
+    }
+}
+
+void ShowErrorPopupIfNeeded() {
+    std::ifstream logFile("errorlog.txt");
+    std::string logContent((std::istreambuf_iterator<char>(logFile)), std::istreambuf_iterator<char>());
+    logFile.close();
+
+    if (!logContent.empty()) {
+        MessageBoxA(nullptr,
+            "A kernel security error was detected.\nPlease create an issue on our GitHub repository and attach errorlog.txt.",
+            "EzAntiAntiCheat Error", MB_OK | MB_ICONERROR);
+
+        ShellExecuteA(nullptr, "open",
+            "https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat/issues",
+            nullptr, nullptr, SW_SHOWNORMAL);
+    }
+}
+
+bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD outBufSize)
+{
+    HANDLE hDevice = CreateFileW(L"\\\\.\\EzAntiAntiCheat-x64-Release.exe", GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+    if (hDevice == INVALID_HANDLE_VALUE)
+        return false;
+
+    DWORD bytesReturned = 0;
+    BOOL result = DeviceIoControl(hDevice, ioctl, inBuf, inBufSize, outBuf, outBufSize, &bytesReturned, nullptr);
+    CloseHandle(hDevice);
+    return result && bytesReturned > 0;
+}
 
 int main()
 {
+    RetrieveAndWriteErrorLog();
+    ShowErrorPopupIfNeeded();
+
     if (!IsSystemAccount()) {
-        std::cout << "This application must be run as NT AUTHORITY\\SYSTEM.\nPress any key to exit...";
+        std::cout << "This application must be run as NT AUTHORITY\\SYSTEM, and disable secure boot and enable test signing.\nPress any key to exit...";
         std::cin.get();
+        return 1;
+    }
+
+    if (!EnsureTestSigningAndDisableSecureBoot()) {
         return 1;
     }
 

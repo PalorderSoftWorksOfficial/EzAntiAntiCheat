@@ -2,8 +2,7 @@
 #include <ntstrsafe.h>
 #include "../include/DriverDefs.h"
 #include "IoctlDefs.h"
-
-#define DRIVER_TAG 'shLD'
+#define DRIVER_TAG 'EzAntiAntiCheat'
 NTSTATUS TerminateProcessById(HANDLE pid);
 
 // ==================== Build-time EXE + symlink names ====================
@@ -37,7 +36,7 @@ NTSTATUS TerminateProcessById(HANDLE pid);
 #else
 #error Unsupported architecture
 #endif
-// OH NO ME HEART STOP LULAOWEJGAWPGJOEJRHJAEIORHAORHSH
+// OH NO ME HEART STOP LULAOWEJGAWPGJOEJRHJAEIORHAORHSH IM FUCKING DIEING
 // i almost got an heart attack from this as its hardcoded shit that is uh broken
 UNICODE_STRING g_SymLinkName = RTL_CONSTANT_STRING(SYM_LINK_LITERAL);
 const char* g_ProtectedProcessNameA = PROTECTED_EXE_NAME;
@@ -143,7 +142,9 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
     NTSTATUS status = STATUS_INVALID_DEVICE_REQUEST;
     ULONG_PTR info = 0;
+    ULONG pid = 0; // Declare here, before switch
 
+    // Access control: Only allow SYSTEM or protected process
     if (!IsCallerSystem())
     {
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
@@ -158,34 +159,51 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     switch (stack->Parameters.DeviceIoControl.IoControlCode)
     {
     case IOCTL_ENABLE_PROTECTION:
+        if (stack->Parameters.DeviceIoControl.InputBufferLength != 0 ||
+            stack->Parameters.DeviceIoControl.OutputBufferLength != 0)
+        {
+            status = STATUS_INVALID_PARAMETER;
+            break;
+        }
         InterlockedExchange(&g_ProtectionEnabled, 1);
         status = STATUS_SUCCESS;
         break;
 
     case IOCTL_DISABLE_PROTECTION:
+        if (stack->Parameters.DeviceIoControl.InputBufferLength != 0 ||
+            stack->Parameters.DeviceIoControl.OutputBufferLength != 0)
+        {
+            status = STATUS_INVALID_PARAMETER;
+            break;
+        }
         InterlockedExchange(&g_ProtectionEnabled, 0);
         status = STATUS_SUCCESS;
         break;
 
     case IOCTL_KILL_AND_WIPE_PROCESS:
-    {
         if (stack->Parameters.DeviceIoControl.InputBufferLength < sizeof(ULONG))
         {
             status = STATUS_BUFFER_TOO_SMALL;
             break;
         }
-
-        ULONG pid = *(ULONG*)Irp->AssociatedIrp.SystemBuffer;
+        pid = *(ULONG*)Irp->AssociatedIrp.SystemBuffer;
+        // Validate PID: must not be system/critical
         if (!IsSafeToTerminate((HANDLE)pid))
         {
             status = STATUS_ACCESS_DENIED;
             break;
         }
-
         status = TerminateProcessById((HANDLE)pid);
         break;
-    }
-
+    case IOCTL_GET_LAST_ERROR_LOG:
+        if (stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(g_LastErrorLog)) {
+            status = STATUS_BUFFER_TOO_SMALL;
+            break;
+        }
+        RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, g_LastErrorLog, sizeof(g_LastErrorLog));
+        Irp->IoStatus.Information = sizeof(g_LastErrorLog);
+        status = STATUS_SUCCESS;
+        break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         break;

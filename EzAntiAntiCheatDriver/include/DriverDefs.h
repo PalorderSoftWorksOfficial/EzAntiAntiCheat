@@ -16,6 +16,7 @@ extern "C" {
     extern SIZE_T g_DriverSize;
     extern ULONG g_ExpectedCrc;
     extern HANDLE g_IntegrityThreadHandle;
+    extern char g_LastErrorLog[256];
 
     BOOLEAN IsManagerProcess();
 
@@ -28,6 +29,8 @@ extern "C" {
     VOID StopIntegrityThread();
 
     VOID IntegrityThread(_In_ PVOID StartContext);
+
+    void SetLastErrorLog(const char* culpritSid);
 
 #ifdef __cplusplus
 }
