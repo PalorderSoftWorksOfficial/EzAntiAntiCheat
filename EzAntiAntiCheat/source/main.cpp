@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include <windows.h>
+#include <string>
 #include <winreg.h>
 #include <algorithm>
 #undef max
@@ -18,12 +19,41 @@
 #include "IoctlDefs.h"
 #include "../include/ControllerDefs.h"
 #include <shellapi.h>
+#if defined(_M_ARM64)
+#ifdef _DEBUG
+#define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-arm64-Debug.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-arm64-Debug.exe"
+#else
+#define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-arm64-Release.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-arm64-Release.exe"
+#endif
+
+#elif defined(_M_X64) || defined(_WIN64)
+#ifdef _DEBUG
+#define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-x64-Debug.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x64-Debug.exe"
+#else
+#define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-x64-Release.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x64-Release.exe"
+#endif
+
+#elif defined(_M_IX86)
+#ifdef _DEBUG
+#define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-x86-Debug.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x86-Debug.exe"
+#else
+#define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-x86-Release.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x86-Release.exe"
+#endif
+
+#else
+#error Unsupported architecture
+#endif
 
 // Global state
 bool g_ServiceInstalled = false;
 SC_HANDLE g_hService = nullptr;
 SC_HANDLE g_hSCManager = nullptr;
-
 bool InstallService();
 bool LoadDriver();
 bool UnloadDriver();
@@ -433,9 +463,9 @@ void ShowErrorPopupIfNeeded() {
     }
 }
 
-bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD outBufSize)
-{
-    HANDLE hDevice = CreateFileW(L"\\\\.\\EzAntiAntiCheat-x64-Release.exe", GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD outBufSize) {
+    std::wstring protectedExe = L"\\\\.\\" + std::wstring(PROTECTED_EXE_NAME); // see next fix
+    HANDLE hDevice = CreateFileW(protectedExe.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
     if (hDevice == INVALID_HANDLE_VALUE)
         return false;
 
@@ -444,6 +474,8 @@ bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD ou
     CloseHandle(hDevice);
     return result && bytesReturned > 0;
 }
+
+
 
 int main()
 {
