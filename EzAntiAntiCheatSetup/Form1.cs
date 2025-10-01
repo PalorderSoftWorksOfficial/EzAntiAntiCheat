@@ -3,8 +3,12 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 // I am ass at using designer so i just used copilot for this - PalorderSoftWorksOfficial
+
 namespace EzAntiAntiCheatSetup
 {
+    /// <summary>
+    /// Main form of the EzAntiAntiCheatSetup application.
+    /// </summary>
     public class Form1 : Form
     {
         private TextBox instructionsTextBox;
@@ -12,7 +16,10 @@ namespace EzAntiAntiCheatSetup
         private Button btnExecTI;
         private Button btnGitHub;
         private Button btnHelp;
-
+        /// <summary>
+        /// Main form of the EzAntiAntiCheatSetup application.
+        /// </summary>
+        /// i hate CS now
         public Form1()
         {
             this.Text = "EzAntiAntiCheat Setup Wizard";
