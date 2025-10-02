@@ -16,9 +16,14 @@
 #include <csignal>
 #include <random>
 #include <limits>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+#include <wincrypt.h>
 #include "IoctlDefs.h"
 #include "../include/ControllerDefs.h"
 #include <shellapi.h>
+#pragma comment(lib, "crypt32.lib")
 #if defined(_M_ARM64)
 #ifdef _DEBUG
 #define PROTECTED_EXE_NAME   L"EzAntiAntiCheat-arm64-Debug.exe"
@@ -50,7 +55,44 @@
 #error Unsupported architecture
 #endif
 
-// Global state
+// --- Error Logging ---
+void InitErrorLog() {
+    std::ofstream logFile("errorlog.txt", std::ios::out | std::ios::trunc);
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    logFile << "EzAntiAntiCheat Log Started: " << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "\n";
+    logFile.close();
+}
+
+void LogError(const std::string& msg) {
+    std::ofstream logFile("errorlog.txt", std::ios::app);
+    if (logFile.is_open()) {
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+        logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << msg << "\n";
+        logFile.close();
+    }
+}
+
+bool IsCertificatePresent(const std::wstring& subjectSubstring) {
+    HCERTSTORE hStore = CertOpenSystemStoreW(0, L"MY");
+    if (!hStore) return false;
+    PCCERT_CONTEXT pCert = nullptr;
+    bool found = false;
+    while ((pCert = CertFindCertificateInStore(hStore, X509_ASN_ENCODING, 0, CERT_FIND_ANY, nullptr, pCert)) != nullptr) {
+        DWORD size = CertGetNameStringW(pCert, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, nullptr, 0);
+        std::wstring subject(size, L'\0');
+        CertGetNameStringW(pCert, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, &subject[0], size);
+        if (subject.find(subjectSubstring) != std::wstring::npos) {
+            found = true;
+            break;
+        }
+    }
+    CertCloseStore(hStore, 0);
+    return found;
+}
+
+// --- Global state ---
 bool g_ServiceInstalled = false;
 SC_HANDLE g_hService = nullptr;
 SC_HANDLE g_hSCManager = nullptr;
@@ -59,10 +101,10 @@ bool LoadDriver();
 bool UnloadDriver();
 bool SendIoctl(DWORD ioctl, void* inBuf = nullptr, DWORD inBufSize = 0, void* outBuf = nullptr, DWORD outBufSize = 0);
 void RunMenu();
+
 void CleanupOnExit()
 {
     RunMenu();
-
     if (g_ServiceInstalled)
         UnloadDriver();
 }
@@ -80,18 +122,16 @@ BOOL WINAPI ConsoleHandler(DWORD dwCtrlType)
         return TRUE;
     default:
         return FALSE;
-}
+    }
 }
 
 bool IsSafeWipePath(const std::wstring& exePath) {
-    // Block system folders
     std::wstring lowerPath = exePath;
     std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), ::towlower);
     if (lowerPath.find(L"\\windows\\") != std::wstring::npos ||
         lowerPath.find(L"\\system32\\") != std::wstring::npos ||
         lowerPath.find(L"\\windows\\system32\\drivers\\") != std::wstring::npos)
         return false;
-    // Allow only Program Files locations
     if (lowerPath.find(L"c:\\program files\\") == std::wstring::npos &&
         lowerPath.find(L"c:\\program files (x86)\\") == std::wstring::npos)
         return false;
@@ -125,7 +165,9 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
         FILE_ATTRIBUTE_NORMAL,
         nullptr);
     if (hFile == INVALID_HANDLE_VALUE) {
-        std::cout << "Failed to open file for overwrite\n";
+        std::string msg = "Failed to open file for overwrite: " + std::string(filePath.begin(), filePath.end());
+        std::cout << msg << "\n";
+        LogError(msg);
         return;
     }
 
@@ -134,42 +176,44 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, 255);
 
-    DWORD bytesWritten = 0;
-    LONGLONG totalWritten = 0;
-    bool writeFailed = false;
-
-    // Overwrite file with random data
-    while (totalWritten < fileSize.QuadPart) {
-        for (auto& b : randomBuffer) b = static_cast<BYTE>(dis(gen));
-        DWORD toWrite = static_cast<DWORD>(std::min<LONGLONG>(randomBuffer.size(), fileSize.QuadPart - totalWritten));
-        if (!WriteFile(hFile, randomBuffer.data(), toWrite, &bytesWritten, nullptr) || bytesWritten != toWrite) {
-            std::cout << "Failed to write random data to file\n";
-            writeFailed = true;
-            break;
+    for (int pass = 0; pass < 3; ++pass) {
+        DWORD bytesWritten = 0;
+        LONGLONG totalWritten = 0;
+        SetFilePointer(hFile, 0, nullptr, FILE_BEGIN);
+        while (totalWritten < fileSize.QuadPart) {
+            for (auto& b : randomBuffer) b = static_cast<BYTE>(dis(gen));
+            DWORD toWrite = static_cast<DWORD>(std::min<LONGLONG>(randomBuffer.size(), fileSize.QuadPart - totalWritten));
+            if (!WriteFile(hFile, randomBuffer.data(), toWrite, &bytesWritten, nullptr) || bytesWritten != toWrite) {
+                std::string msg = "Failed to write random data to file: " + std::string(filePath.begin(), filePath.end());
+                std::cout << msg << "\n";
+                LogError(msg);
+                break;
+            }
+            totalWritten += bytesWritten;
         }
-        totalWritten += bytesWritten;
+        FlushFileBuffers(hFile);
     }
-
-    // Truncate file to zero length
     SetFilePointer(hFile, 0, nullptr, FILE_BEGIN);
     SetEndOfFile(hFile);
-
     CloseHandle(hFile);
-    if (!writeFailed)
-        std::cout << "Executable securely wiped\n";
-    else
-        std::cout << "Executable wipe incomplete due to write failure\n";
+    SetFileAttributesW(filePath.c_str(), FILE_ATTRIBUTE_NORMAL);
+    DeleteFileW(filePath.c_str());
+    std::string msg = "Executable securely wiped and deleted: " + std::string(filePath.begin(), filePath.end());
+    std::cout << msg << "\n";
+    LogError(msg);
 }
 
 void ListAndWipeProcess()
 {
     static const std::vector<std::wstring> allowedExecutables = {
-        L"EasyAntiCheat.exe", L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe"
+         PROTECTED_EXE_NAME, L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe"
     };
 
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnap == INVALID_HANDLE_VALUE) {
-        std::cout << "Failed to create process snapshot\n";
+        std::string msg = "Failed to create process snapshot";
+        std::cout << msg << "\n";
+        LogError(msg);
         return;
     }
 
@@ -194,7 +238,9 @@ void ListAndWipeProcess()
     CloseHandle(hSnap);
 
     if (processNames.empty()) {
-        std::cout << "No allowed anti-cheat processes found\n";
+        std::string msg = "No allowed anti-cheat processes found";
+        std::cout << msg << "\n";
+        LogError(msg);
         return;
     }
 
@@ -205,7 +251,9 @@ void ListAndWipeProcess()
     if (std::cin.fail() || selection <= 0 || selection > (int)processNames.size()) {
         std::cin.clear();
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Cancelled\n";
+        std::string msg = "Cancelled";
+        std::cout << msg << "\n";
+        LogError(msg);
         return;
     }
 
@@ -216,21 +264,27 @@ void ListAndWipeProcess()
     if (g_ServiceInstalled) {
         if (SendIoctl(IOCTL_KILL_AND_WIPE_PROCESS, &pid, sizeof(pid))) {
             std::wcout << L"Driver: Kill & Wipe request sent for PID " << pid << L"\n";
+            LogError("Driver: Kill & Wipe request sent for PID " + std::to_string(pid));
         } else {
             std::wcout << L"Driver: Kill & Wipe request failed for PID " << pid << L"\n";
+            LogError("Driver: Kill & Wipe request failed for PID " + std::to_string(pid));
         }
     }
 
     // --- User-mode backup and wipe ---
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_TERMINATE, FALSE, pid);
     if (!hProcess) {
-        std::cout << "Failed to open process for query and termination\n";
+        std::string msg = "Failed to open process for query and termination";
+        std::cout << msg << "\n";
+        LogError(msg);
         return;
     }
 
     wchar_t exePath[MAX_PATH] = { 0 };
     if (!GetModuleFileNameExW(hProcess, nullptr, exePath, MAX_PATH)) {
-        std::cout << "Failed to get executable path\n";
+        std::string msg = "Failed to get executable path";
+        std::cout << msg << "\n";
+        LogError(msg);
         CloseHandle(hProcess);
         return;
     }
@@ -238,44 +292,53 @@ void ListAndWipeProcess()
     std::wstring exePathStr(exePath);
     if (!IsSafeWipePath(exePathStr)) {
         std::wcout << L"Refusing to wipe system or non-Program Files file: " << exePath << L"\n";
+        LogError("Refusing to wipe system or non-Program Files file: " + std::string(exePathStr.begin(), exePathStr.end()));
         CloseHandle(hProcess);
         return;
     }
 
     if (!IsFileOwnerSystemOrAdmin(exePathStr)) {
         std::wcout << L"Refusing to wipe file not owned by SYSTEM or Administrators: " << exePath << L"\n";
+        LogError("Refusing to wipe file not owned by SYSTEM or Administrators: " + std::string(exePathStr.begin(), exePathStr.end()));
         CloseHandle(hProcess);
         return;
     }
 
     std::wcout << L"Target: " << exePath << L"\n";
+    LogError("Target: " + std::string(exePathStr.begin(), exePathStr.end()));
 
     // Terminate the process (user-mode fallback)
     if (!TerminateProcess(hProcess, 1)) {
-        std::cout << "Failed to terminate process\n";
+        std::string msg = "Failed to terminate process";
+        std::cout << msg << "\n";
+        LogError(msg);
         CloseHandle(hProcess);
         return;
     }
 
-    // Wait for process to actually exit
     WaitForSingleObject(hProcess, 5000); // wait max 5 seconds
     CloseHandle(hProcess);
 
     std::wcout << L"Process terminated: " << exeName << L"\n";
+    LogError("Process terminated: " + std::string(exeName.begin(), exeName.end()));
 
     // Backup EXE
     std::wstring bakPath = exePath;
     bakPath += L".bak";
     if (!CopyFileW(exePath, bakPath.c_str(), FALSE)) {
         std::wcout << L"Failed to create backup at: " << bakPath << L"\n";
+        LogError("Failed to create backup at: " + std::string(bakPath.begin(), bakPath.end()));
     } else {
         std::wcout << L"Backup created: " << bakPath << L"\n";
+        LogError("Backup created: " + std::string(bakPath.begin(), bakPath.end()));
     }
 
     LARGE_INTEGER fileSize;
     HANDLE hFile = CreateFileW(exePath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hFile == INVALID_HANDLE_VALUE || !GetFileSizeEx(hFile, &fileSize)) {
-        std::cout << "Failed to get file size\n";
+        std::string msg = "Failed to get file size";
+        std::cout << msg << "\n";
+        LogError(msg);
         if (hFile != INVALID_HANDLE_VALUE) CloseHandle(hFile);
         return;
     }
@@ -301,35 +364,48 @@ void RunMenu()
         {
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid input\n";
+            std::string msg = "Invalid input";
+            std::cout << msg << "\n";
+            LogError(msg);
             continue;
         }
 
         switch (choice)
         {
         case 1:
-            if (SendIoctl(IOCTL_ENABLE_PROTECTION))
+            if (SendIoctl(IOCTL_ENABLE_PROTECTION)) {
                 std::cout << "Protection enabled\n";
-            else
+                LogError("Protection enabled");
+            }
+            else {
                 std::cout << "Failed to enable protection\n";
+                LogError("Failed to enable protection");
+            }
             break;
 
         case 2:
-            if (SendIoctl(IOCTL_DISABLE_PROTECTION))
+            if (SendIoctl(IOCTL_DISABLE_PROTECTION)) {
                 std::cout << "Protection disabled\n";
-            else
+                LogError("Protection disabled");
+            }
+            else {
                 std::cout << "Failed to disable protection\n";
+                LogError("Failed to disable protection");
+            }
             break;
         case 3:
         {
             if (InstallService())
             {
                 std::cout << "Service installed and started successfully\n";
+                LogError("Service installed and started successfully");
                 g_ServiceInstalled = true;
             }
             else
             {
-                std::cout << "Failed to install/start service\n";
+                std::string msg = "Failed to install/start service";
+                std::cout << msg << "\n";
+                LogError(msg);
             }
             break;
         }
@@ -340,10 +416,12 @@ void RunMenu()
 
         case 0:
             std::cout << "Exiting\n";
+            LogError("Exiting");
             break;
 
         default:
             std::cout << "Invalid choice\n";
+            LogError("Invalid choice");
             break;
         }
     }
@@ -367,7 +445,6 @@ bool IsSystemAccount()
     if (GetTokenInformation(hToken, TokenUser, ptu, size, &size)) {
         WCHAR* sidString = nullptr;
         if (ConvertSidToStringSidW(ptu->User.Sid, &sidString)) {
-            // SID for NT AUTHORITY\SYSTEM is S-1-5-18
             if (wcscmp(sidString, L"S-1-5-18") == 0)
                 isSystem = true;
             LocalFree(sidString);
@@ -377,9 +454,9 @@ bool IsSystemAccount()
     CloseHandle(hToken);
     return isSystem;
 }
+
 bool EnsureTestSigningAndDisableSecureBoot()
 {
-    // Check Secure Boot status
     bool secureBootEnabled = false;
     HKEY hKey;
     DWORD value = 0, valueSize = sizeof(DWORD);
@@ -393,7 +470,6 @@ bool EnsureTestSigningAndDisableSecureBoot()
         RegCloseKey(hKey);
     }
 
-    // Check Test Signing status
     bool testSigningEnabled = false;
     valueSize = sizeof(DWORD);
     status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
@@ -410,40 +486,47 @@ bool EnsureTestSigningAndDisableSecureBoot()
         RegCloseKey(hKey);
     }
 
-    // If Secure Boot is enabled, attempt to disable it (requires firmware interaction)
     if (secureBootEnabled) {
-        std::cout << "Secure Boot is enabled. Please disable it in your UEFI firmware settings.\n";
+        std::string msg = "Secure Boot is enabled. Please disable it in your UEFI firmware settings.";
+        std::cout << msg << "\n";
+        LogError(msg);
         std::cin.get();
         return false;
     }
 
-    // If Test Signing is not enabled, enable it
     if (!testSigningEnabled) {
-        std::cout << "Test Signing is not enabled. Attempting to enable...\n";
-        // Enable test signing using bcdedit
+        std::string msg = "Test Signing is not enabled. Attempting to enable...";
+        std::cout << msg << "\n";
+        LogError(msg);
         int ret = system("bcdedit /set testsigning on");
         if (ret != 0) {
-            std::cout << "Failed to enable test signing. Run as administrator.\n";
+            std::string msg2 = "Failed to enable test signing. Run as administrator.";
+            std::cout << msg2 << "\n";
+            LogError(msg2);
             std::cin.get();
             return false;
         }
-        std::cout << "Test signing enabled. Please reboot your system for changes to take effect.\n";
+        std::string msg3 = "Test signing enabled. Please reboot your system for changes to take effect.";
+        std::cout << msg3 << "\n";
+        LogError(msg3);
         std::cin.get();
         return false;
     }
 
-    std::cout << "Secure Boot is disabled and Test Signing is enabled.\n";
+    std::string msg = "Secure Boot is disabled and Test Signing is enabled.";
+    std::cout << msg << "\n";
+    LogError(msg);
     return true;
 }
 
 void RetrieveAndWriteErrorLog() {
     char errorLog[256] = {0};
     if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog))) {
+        std::ofstream logFile("errorlog.txt", std::ios::app);
         if (strlen(errorLog) > 0) {
-            std::ofstream logFile("errorlog.txt", std::ios::out | std::ios::trunc);
-            logFile << errorLog;
-            logFile.close();
+            logFile << "[KERNEL] " << errorLog << "\n";
         }
+        logFile.close();
     }
 }
 
@@ -464,31 +547,49 @@ void ShowErrorPopupIfNeeded() {
 }
 
 bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD outBufSize) {
-    std::wstring protectedExe = L"\\\\.\\" + std::wstring(PROTECTED_EXE_NAME); // see next fix
+    std::wstring protectedExe = L"\\\\.\\" + std::wstring(PROTECTED_EXE_NAME);
     HANDLE hDevice = CreateFileW(protectedExe.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
-    if (hDevice == INVALID_HANDLE_VALUE)
+    if (hDevice == INVALID_HANDLE_VALUE) {
+        std::ostringstream oss;
+        oss << "Failed to open device for IOCTL (" << GetLastError() << ")";
+        LogError(oss.str());
         return false;
+    }
 
     DWORD bytesReturned = 0;
     BOOL result = DeviceIoControl(hDevice, ioctl, inBuf, inBufSize, outBuf, outBufSize, &bytesReturned, nullptr);
+    if (!result) {
+        std::ostringstream oss;
+        oss << "DeviceIoControl failed (IOCTL=" << ioctl << ", Error=" << GetLastError() << ")";
+        LogError(oss.str());
+    }
     CloseHandle(hDevice);
     return result && bytesReturned > 0;
 }
 
-
-
+// --- Main ---
 int main()
 {
+    InitErrorLog();
+    LogError("Program started.");
+
+    // Optionally check for certificate
+    bool certPresent = IsCertificatePresent(L"EzAntiAntiCheat");
+    LogError(std::string("Certificate present in store: ") + (certPresent ? "YES" : "NO"));
+
     RetrieveAndWriteErrorLog();
     ShowErrorPopupIfNeeded();
 
     if (!IsSystemAccount()) {
-        std::cout << "This application must be run as NT AUTHORITY\\SYSTEM, and disable secure boot and enable test signing.\nPress any key to exit...";
+        std::string msg = "This application must be run as NT AUTHORITY\\SYSTEM, and disable secure boot and enable test signing.";
+        std::cout << msg << "\nPress any key to exit...";
+        LogError(msg);
         std::cin.get();
         return 1;
     }
 
     if (!EnsureTestSigningAndDisableSecureBoot()) {
+        LogError("Test signing or secure boot requirements not met.");
         return 1;
     }
 
@@ -499,5 +600,6 @@ int main()
     if (g_ServiceInstalled)
         UnloadDriver();
 
+    LogError("Program exited.");
     return 0;
 }
