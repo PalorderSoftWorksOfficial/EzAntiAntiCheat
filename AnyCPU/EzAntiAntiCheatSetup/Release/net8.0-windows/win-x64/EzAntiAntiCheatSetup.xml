@@ -6,14 +6,14 @@
     <members>
         <member name="T:EzAntiAntiCheatSetup.Form1">
             <summary>
-            Main form of the EzAntiAntiCheatSetup application.
+            Main setup wizard form for EzAntiAntiCheat. Provides instructions and quick access buttons
+            for downloading required tools, opening the program folder, and accessing help resources.
             </summary>
         </member>
         <member name="M:EzAntiAntiCheatSetup.Form1.#ctor">
             <summary>
-            Main form of the EzAntiAntiCheatSetup application.
+            Initializes a new instance of the <see cref="T:EzAntiAntiCheatSetup.Form1"/> class.
             </summary>
-            i hate CS now
         </member>
         <member name="M:EzAntiAntiCheatSetup.Program.Main">
             <summary>
