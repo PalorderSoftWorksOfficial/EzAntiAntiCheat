@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EzAntiAntiCheat Setup Wizard</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --fg: #f5f5f5;
+      --accent: #1e90ff;
+      --card-bg: #1f1f1f;
+      --border: #333;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--fg);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .subtitle {
+      color: var(--accent);
+      margin-top: 8px;
+    }
+
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .step-container {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      min-height: 200px;
+      margin-bottom: 20px;
+      transition: opacity 0.2s ease;
+    }
+
+    .step-container.fade {
+      opacity: 0.4;
+    }
+
+    .step-content code {
+      background: #222;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .navigation {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    button {
+      background-color: var(--accent);
+      color: var(--fg);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:disabled {
+      background-color: #444;
+      cursor: not-allowed;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.9rem;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EzAntiAntiCheat Setup Wizard</h1>
+    <p class="subtitle">Follow the steps to set up the certificate</p>
+  </header>
+
+  <main>
+    <div class="step-container" id="step-container"></div>
+    <div class="navigation">
+      <button id="prevBtn">Previous</button>
+      <span id="stepCounter">Step 1 of 1</span>
+      <button id="nextBtn">Next</button>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 PalorderSoftWorks. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const steps = [
+      {
+        title: "Install Certificate (.pfx)",
+        content:
+          "1. Press <strong>Win + R</strong>, type <code>certmgr.msc</code>, and hit Enter.<br>" +
+          "2. Navigate to <strong>Personal → Certificates</strong>.<br>" +
+          "3. Right-click and select <em>Import...</em><br>" +
+          "4. Select your <code>.pfx</code> file.<br>" +
+          "5. Enter the password:<br>" +
+          "<code>NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg</code><br>" +
+          "6. Mark as exportable, finish wizard."
+      },
+      {
+        title: "Add to Trusted Root",
+        content:
+          "1. In Certificate Manager, expand <strong>Trusted Root Certification Authorities → Certificates</strong>.<br>" +
+          "2. Right-click and select <em>Import...</em><br>" +
+          "3. Use the same <code>.pfx</code> or exported <code>.cer</code> file.<br>" +
+          "4. Complete the wizard."
+      },
+      {
+        title: "Add to Trusted Publishers",
+        content:
+          "1. Expand <strong>Trusted Publishers → Certificates</strong>.<br>" +
+          "2. Right-click and select <em>Import...</em><br>" +
+          "3. Use the <code>.cer</code> file or the <code>.pfx</code>.<br>" +
+          "4. Finish the wizard."
+      },
+      {
+        title: "Enable Test Signing",
+        content:
+          "Run this in an elevated Command Prompt:<br>" +
+          "<code>bcdedit /set testsigning on</code><br>" +
+          "Then reboot your computer."
+      },
+      {
+        title: "Verify Test Signing",
+        content:
+          "After reboot, run:<br>" +
+          "<code>bcdedit /enum</code><br>" +
+          "Look for:<br>" +
+          "<code>testsigning Yes</code>"
+      },
+      {
+        title: "Install Your Driver",
+        content:
+          "You can now install and run your test-signed driver without Windows blocking it."
+      }
+    ];
+
+    let currentStep = localStorage.getItem("step")
+      ? parseInt(localStorage.getItem("step"))
+      : 0;
+
+    const stepContainer = document.getElementById("step-container");
+    const stepCounter = document.getElementById("stepCounter");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function renderStep(index) {
+      const step = steps[index];
+      stepContainer.classList.add("fade");
+      setTimeout(() => {
+        stepContainer.innerHTML =
+          "<h2>" + step.title + "</h2><div class='step-content'>" + step.content + "</div>";
+        stepCounter.textContent = "Step " + (index + 1) + " of " + steps.length;
+        prevBtn.disabled = index === 0;
+        nextBtn.disabled = index === steps.length - 1;
+        localStorage.setItem("step", index);
+        stepContainer.classList.remove("fade");
+      }, 150);
+    }
+
+    prevBtn.addEventListener("click", () => {
+      if (currentStep > 0) {
+        currentStep--;
+        renderStep(currentStep);
+      }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (currentStep < steps.length - 1) {
+        currentStep++;
+        renderStep(currentStep);
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") prevBtn.click();
+      if (e.key === "ArrowRight") nextBtn.click();
+    });
+
+    renderStep(currentStep);
+  </script>
+</body>
+</html>
