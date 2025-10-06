@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EzAntiAntiCheat Setup Wizard</title>
+  <title>EzAntiAntiCheat</title>
   <style>
     :root {
       --bg: #121212;
       --fg: #f5f5f5;
-      --accent: #1e90ff;
-      --card-bg: #1f1f1f;
+      --accent: #0078d7;
+      --accent-hover: #005a9e;
+      --card-bg: #1e1e1e;
       --border: #333;
+      --shadow: rgba(0, 0, 0, 0.5);
+      --transition-speed: 0.3s;
     }
 
     * {
@@ -23,189 +26,221 @@
       background-color: var(--bg);
       color: var(--fg);
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding: 20px;
       line-height: 1.6;
     }
 
     header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .subtitle {
-      color: var(--accent);
-      margin-top: 8px;
-    }
-
-    main {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .step-container {
       background-color: var(--card-bg);
       padding: 20px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      min-height: 200px;
-      margin-bottom: 20px;
-      transition: opacity 0.2s ease;
+      text-align: center;
+      box-shadow: 0 4px 8px var(--shadow);
     }
 
-    .step-container.fade {
-      opacity: 0.4;
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: bold;
     }
 
-    .step-content code {
-      background: #222;
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-family: monospace;
+    header p {
+      color: var(--accent);
+      margin-top: 8px;
+      font-size: 1.2rem;
     }
 
-    .navigation {
+    nav {
+      position: sticky;
+      top: 0;
+      background-color: var(--card-bg);
+      padding: 10px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-shadow: 0 2px 4px var(--shadow);
+      z-index: 1000;
     }
 
-    button {
+    nav a {
+      color: var(--fg);
+      text-decoration: none;
+      margin: 0 10px;
+      font-size: 1rem;
+      transition: color var(--transition-speed);
+    }
+
+    nav a:hover {
+      color: var(--accent);
+    }
+
+    section {
+      padding: 40px 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      animation: fadeIn var(--transition-speed) ease-in-out;
+    }
+
+    section h2 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    section p {
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      color: var(--accent);
+    }
+
+    .card p {
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: inline-block;
       background-color: var(--accent);
       color: var(--fg);
-      border: none;
       padding: 10px 20px;
       border-radius: 5px;
+      text-decoration: none;
       font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
+      transition: background-color var(--transition-speed), transform var(--transition-speed);
+      box-shadow: 0 2px 4px var(--shadow);
     }
 
-    button:disabled {
-      background-color: #444;
-      cursor: not-allowed;
+    .btn:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-2px);
     }
 
     footer {
       text-align: center;
+      padding: 20px;
+      background-color: var(--card-bg);
       margin-top: 40px;
       font-size: 0.9rem;
       color: #777;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>EzAntiAntiCheat Setup Wizard</h1>
-    <p class="subtitle">Follow the steps to set up the certificate</p>
+    <h1>EzAntiAntiCheat™</h1>
+    <p>Copyright: PalorderSoftWorks™ @ 2025.</p>
   </header>
 
-  <main>
-    <div class="step-container" id="step-container"></div>
-    <div class="navigation">
-      <button id="prevBtn">Previous</button>
-      <span id="stepCounter">Step 1 of 1</span>
-      <button id="nextBtn">Next</button>
+  <nav>
+    <a href="#about">About</a>
+    <a href="#how-to-install">How to Install</a>
+    <a href="#download">Download</a>
+    <a href="#participation">Participation</a>
+  </nav>
+
+  <section id="about">
+    <h2>About PalorderSoftWorks™</h2>
+    <p>
+      PalorderSoftWorks™ — interesting name, right? It all started back in 2022 when I (still a minor at the time) had a dream of creating a coding company. That dream led to the creation of Palorder Corporation, the parent company of PalorderSoftWorks. Over time, PalorderSoftWorks became an independent company, dedicated to creating innovative software for gamers and developing indie games.
+    </p>
+    <p>
+      As a solo indie developer, I strive to empower developers and gamers alike with tools that simplify their workflows and enhance their experiences. PalorderSoftWorks is built on the foundation of passion, creativity, and a commitment to delivering software solutions that may or may not work due i have alot of inexperience :(.
+    </p>
+    <div class="card">
+      <h3>Our Mission</h3>
+      <p>
+        To empower developers and gamers with cutting-edge tools and games that inspire creativity and innovation.
+      </p>
     </div>
-  </main>
+    <div class="card">
+      <h3>Why Choose Us?</h3>
+      <p>
+        - A passion-driven approach to software development<br>
+        - A commitment to quality and user satisfaction<br>
+        - A growing community of developers and gamers who trust our solutions
+      </p>
+    </div>
+  </section>
+
+  <section id="how-to-install">
+    <h2>How to Install</h2>
+    <div class="card">
+      <h3>Step 1: Install Certificate</h3>
+      <p>
+        Open the Certificate Manager (<code>certmgr.msc</code>) and import the provided <code>.pfx</code> file.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Step 2: Add to Trusted Root</h3>
+      <p>
+        Import the certificate into the Trusted Root Certification Authorities store.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Step 3: Enable Test Signing</h3>
+      <p>
+        Run <code>bcdedit /set testsigning on</code> in an elevated Command Prompt and reboot your system.
+      </p>
+    </div>
+  </section>
+
+  <section id="download">
+    <h2>Download</h2>
+    <p>Click the button below to download EzAntiAntiCheat:</p>
+    <a href="https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat/releases" class="btn">Download Now</a>
+  </section>
+
+  <section id="participation">
+    <h2>Participation</h2>
+    <p>
+      At PalorderSoftWorks, we believe in the power of collaboration. As a solo indie developer, I welcome contributions from passionate developers and enthusiasts who want to help maintain and improve EzAntiAntiCheat. Together, we can make this project even better!
+    </p>
+    <div class="card">
+      <h3>How You Can Contribute</h3>
+      <p>
+        - Report bugs and issues on our <a href="https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat/issues" target="_blank">GitHub Issues page</a>.<br>
+        - Submit pull requests with new features, bug fixes, or improvements.<br>
+        - Help improve the documentation to make it easier for others to use.<br>
+        - Share feedback and suggestions to guide the future of the project.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Steps to Become a Contributor</h3>
+      <p>
+        1. Fork the repository on GitHub.<br>
+        2. Clone your forked repository to your local machine.<br>
+        3. Create a new branch for your changes.<br>
+        4. Make your changes and test them thoroughly.<br>
+        5. Submit a pull request to the main repository.<br>
+        6. Wait for your changes to be reviewed and merged!
+      </p>
+    </div>
+    <p>
+      Ready to contribute? Click the button below to visit the GitHub repository and get started:
+    </p>
+    <a href="https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat" class="btn">Contribute on GitHub</a>
+  </section>
 
   <footer>
     <p>&copy; 2025 PalorderSoftWorks. All rights reserved.</p>
   </footer>
-
-  <script>
-    const steps = [
-      {
-        title: "Install Certificate (.pfx)",
-        content:
-          "1. Press <strong>Win + R</strong>, type <code>certmgr.msc</code>, and hit Enter.<br>" +
-          "2. Navigate to <strong>Personal → Certificates</strong>.<br>" +
-          "3. Right-click and select <em>Import...</em><br>" +
-          "4. Select your <code>.pfx</code> file.<br>" +
-          "5. Enter the password:<br>" +
-          "<code>NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg</code><br>" +
-          "6. Mark as exportable, finish wizard."
-      },
-      {
-        title: "Add to Trusted Root",
-        content:
-          "1. In Certificate Manager, expand <strong>Trusted Root Certification Authorities → Certificates</strong>.<br>" +
-          "2. Right-click and select <em>Import...</em><br>" +
-          "3. Use the same <code>.pfx</code> or exported <code>.cer</code> file.<br>" +
-          "4. Complete the wizard."
-      },
-      {
-        title: "Add to Trusted Publishers",
-        content:
-          "1. Expand <strong>Trusted Publishers → Certificates</strong>.<br>" +
-          "2. Right-click and select <em>Import...</em><br>" +
-          "3. Use the <code>.cer</code> file or the <code>.pfx</code>.<br>" +
-          "4. Finish the wizard."
-      },
-      {
-        title: "Enable Test Signing",
-        content:
-          "Run this in an elevated Command Prompt:<br>" +
-          "<code>bcdedit /set testsigning on</code><br>" +
-          "Then reboot your computer."
-      },
-      {
-        title: "Verify Test Signing",
-        content:
-          "After reboot, run:<br>" +
-          "<code>bcdedit /enum</code><br>" +
-          "Look for:<br>" +
-          "<code>testsigning Yes</code>"
-      },
-      {
-        title: "Install Your Driver",
-        content:
-          "You can now install and run your test-signed driver without Windows blocking it."
-      }
-    ];
-
-    let currentStep = localStorage.getItem("step")
-      ? parseInt(localStorage.getItem("step"))
-      : 0;
-
-    const stepContainer = document.getElementById("step-container");
-    const stepCounter = document.getElementById("stepCounter");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-
-    function renderStep(index) {
-      const step = steps[index];
-      stepContainer.classList.add("fade");
-      setTimeout(() => {
-        stepContainer.innerHTML =
-          "<h2>" + step.title + "</h2><div class='step-content'>" + step.content + "</div>";
-        stepCounter.textContent = "Step " + (index + 1) + " of " + steps.length;
-        prevBtn.disabled = index === 0;
-        nextBtn.disabled = index === steps.length - 1;
-        localStorage.setItem("step", index);
-        stepContainer.classList.remove("fade");
-      }, 150);
-    }
-
-    prevBtn.addEventListener("click", () => {
-      if (currentStep > 0) {
-        currentStep--;
-        renderStep(currentStep);
-      }
-    });
-
-    nextBtn.addEventListener("click", () => {
-      if (currentStep < steps.length - 1) {
-        currentStep++;
-        renderStep(currentStep);
-      }
-    });
-
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft") prevBtn.click();
-      if (e.key === "ArrowRight") nextBtn.click();
-    });
-
-    renderStep(currentStep);
-  </script>
 </body>
 </html>
