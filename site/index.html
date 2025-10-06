@@ -26,7 +26,7 @@
       --border: #ddd;
       --shadow: rgba(0, 0, 0, 0.1);
     }
-
+    
     * {
       margin: 0;
       padding: 0;
@@ -102,27 +102,19 @@
     }
 
     section {
-        position: absolute;
-        top: 140px; /* Below the nav */
-        left: 0;
+        display: none;                 /* Hide by default */
+        opacity: 0;                    /* Start invisible */
+        position: relative;            /* Let them flow normally */
         width: 100%;
+        padding: 40px 20px;
         max-width: 900px;
         margin: 0 auto;
-        opacity: 0;
-        pointer-events: none;
-        padding: 40px 20px;
-        transition: opacity var(--transition-speed), transform var(--transition-speed);
-        transform: translateY(10px);
-        z-index: 0;
+        transition: opacity var(--transition-speed);
     }
 
-
     section.active {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateY(0);
-        z-index: 1;
-            
+        display: block;                /* Show the active one */
+        opacity: 1;                    /* Fully visible */
     }
 
 
@@ -199,7 +191,7 @@
     </div>
     <button class="theme-toggle" id="themeToggle">Switch to Light Mode</button>
   </nav>
-
+  <main id="section-wrapper" style="position: relative; min-height: 600px;"></main>
   <section id="home" class="active">
     <h2>Welcome to EzAntiAntiCheat</h2>
     <p>
@@ -244,10 +236,10 @@
   <section id="youshouldvenotclicked">
     <h2>:3</h2>
     <p>
-      :3 :3 :3 :3 :3 :3 Time to die :3
+    <img src="images/jumpscare.png" alt="jumpscare" width="400" style="border-radius: 8px;" />
     </p>
   </section>
-
+    </main>
   <footer>
     <p>&copy; 2025 PalorderSoftWorks. All rights reserved.</p>
   </footer>
