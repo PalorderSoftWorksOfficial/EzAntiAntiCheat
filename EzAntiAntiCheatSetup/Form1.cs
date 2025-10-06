@@ -67,7 +67,7 @@ To use EzAntiAntiCheat, you must follow these steps:
 6. Once launched as SYSTEM/TrustedInstaller, use the menu to install the driver and use the program.
 
 For help, visit the EzAntiAntiCheat GitHub repository:
-https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat"
+https://palordersoftworksofficial.github.io/EzAntiAntiCheat"
             };
             this.Controls.Add(instructionsTextBox);
 
