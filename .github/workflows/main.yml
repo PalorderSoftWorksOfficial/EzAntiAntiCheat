@@ -1,0 +1,56 @@
+name: Deploy Static HTML to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      # Can someone edit this and design an git page for this project?
+      - name: Create site files
+        run: |
+          mkdir site
+          echo "<!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset='UTF-8'>
+              <title>My GitHub Pages Site</title>
+              <link rel='stylesheet' href='style.css'>
+            </head>
+            <body>
+              <h1>Hello from GitHub Actions!</h1>
+              <p>This HTML was generated inside a GitHub Actions workflow.</p>
+            </body>
+          </html>" > site/index.html
+
+          echo "body {
+            font-family: sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding-top: 50px;
+          }" > site/style.css
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './site'
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
