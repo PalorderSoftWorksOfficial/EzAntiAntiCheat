@@ -2,84 +2,48 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
-// I am ass at using designer so i just used copilot for this - PalorderSoftWorksOfficial
 
 namespace EzAntiAntiCheatSetup
 {
     /// <summary>
-    /// Main form of the EzAntiAntiCheatSetup application.
+    /// Main setup wizard form for EzAntiAntiCheat. Provides instructions and quick access buttons
+    /// for downloading required tools, opening the program folder, and accessing help resources.
     /// </summary>
     public class Form1 : Form
     {
         private TextBox instructionsTextBox;
         private Button btnAdvancedRun;
         private Button btnExecTI;
-        private Button btnGitHub;
+        private Button btnOpenEzAnti;
         private Button btnHelp;
+
         /// <summary>
-        /// Main form of the EzAntiAntiCheatSetup application.
+        /// Initializes a new instance of the <see cref="Form1"/> class.
         /// </summary>
-        /// i hate CS now
         public Form1()
         {
-            this.Text = "EzAntiAntiCheat Setup Wizard";
-            this.ClientSize = new Size(640, 420);
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
+            InitializeComponent();
+            SetupUi();
+        }
 
+        private void InitializeComponent()
+        {
+            this.Text = "EzAntiAntiCheat Setup Wizard";
+            this.Width = 600;
+            this.Height = 500;
+        }
+
+        private void SetupUi()
+        {
             instructionsTextBox = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
-                Size = new Size(600, 280),
-                Location = new Point(20, 20),
+                Dock = DockStyle.Top,
+                Height = 320,
                 Font = new Font("Segoe UI", 10),
-            };
-            this.Controls.Add(instructionsTextBox);
-
-            btnAdvancedRun = new Button
-            {
-                Text = "Open AdvancedRun Download",
-                Size = new Size(180, 32),
-                Location = new Point(20, 320)
-            };
-            btnAdvancedRun.Click += btnAdvancedRun_Click;
-            this.Controls.Add(btnAdvancedRun);
-
-            btnExecTI = new Button
-            {
-                Text = "Open ExecTI Download",
-                Size = new Size(180, 32),
-                Location = new Point(220, 320)
-            };
-            btnExecTI.Click += btnExecTI_Click;
-            this.Controls.Add(btnExecTI);
-
-            btnGitHub = new Button
-            {
-                Text = "Open GitHub Repository",
-                Size = new Size(180, 32),
-                Location = new Point(420, 320)
-            };
-            btnGitHub.Click += btnGitHub_Click;
-            this.Controls.Add(btnGitHub);
-
-            btnHelp = new Button
-            {
-                Text = "Help",
-                Size = new Size(80, 32),
-                Location = new Point(20, 370)
-            };
-            btnHelp.Click += btnHelp_Click;
-            this.Controls.Add(btnHelp);
-
-            SetupInstructions();
-        }
-
-        private void SetupInstructions()
-        {
-            instructionsTextBox.Text =
+                Text =
 @"Welcome to the EzAntiAntiCheat Setup Wizard!
 
 To use EzAntiAntiCheat, you must follow these steps:
@@ -103,30 +67,72 @@ To use EzAntiAntiCheat, you must follow these steps:
 6. Once launched as SYSTEM/TrustedInstaller, use the menu to install the driver and use the program.
 
 For help, visit the EzAntiAntiCheat GitHub repository:
-https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat
+https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat"
+            };
+            this.Controls.Add(instructionsTextBox);
 
-If you need help, click the buttons below for more info or to open AdvancedRun's download page.";
+            int topOffset = instructionsTextBox.Bottom + 10;
+
+            btnAdvancedRun = new Button
+            {
+                Text = "Open AdvancedRun Download",
+                Top = topOffset,
+                Left = 20,
+                Width = 200
+            };
+            btnAdvancedRun.Click += BtnAdvancedRun_Click;
+            this.Controls.Add(btnAdvancedRun);
+
+            btnExecTI = new Button
+            {
+                Text = "Open ExecTI Download",
+                Top = topOffset,
+                Left = btnAdvancedRun.Right + 10,
+                Width = 200
+            };
+            btnExecTI.Click += BtnExecTI_Click;
+            this.Controls.Add(btnExecTI);
+
+            btnOpenEzAnti = new Button
+            {
+                Text = "Open EzAntiAntiCheat Folder",
+                Top = btnAdvancedRun.Bottom + 10,
+                Left = 20,
+                Width = 200
+            };
+            btnOpenEzAnti.Click += BtnOpenEzAnti_Click;
+            this.Controls.Add(btnOpenEzAnti);
+
+            btnHelp = new Button
+            {
+                Text = "Help / GitHub",
+                Top = btnAdvancedRun.Bottom + 10,
+                Left = btnOpenEzAnti.Right + 10,
+                Width = 200
+            };
+            btnHelp.Click += BtnHelp_Click;
+            this.Controls.Add(btnHelp);
         }
 
-        private void btnAdvancedRun_Click(object sender, EventArgs e)
+        private void BtnAdvancedRun_Click(object sender, EventArgs e)
         {
             Process.Start(new ProcessStartInfo("https://www.nirsoft.net/utils/advanced_run.html") { UseShellExecute = true });
         }
 
-        private void btnExecTI_Click(object sender, EventArgs e)
+        private void BtnExecTI_Click(object sender, EventArgs e)
         {
             Process.Start(new ProcessStartInfo("https://winaero.com/run-programs-trustedinstaller-windows/") { UseShellExecute = true });
         }
 
-        private void btnGitHub_Click(object sender, EventArgs e)
+        private void BtnOpenEzAnti_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo("https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat") { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(System.IO.Path.GetDirectoryName(Application.ExecutablePath)) { UseShellExecute = true });
         }
 
-        private void btnHelp_Click(object sender, EventArgs e)
+        private void BtnHelp_Click(object sender, EventArgs e)
         {
             MessageBox.Show(
-                "For best results, use AdvancedRun to launch EzAntiAntiCheat.exe as TrustedInstaller.\n" +
+                "For best results, use AdvancedRun to launch EzAntiAntiCheat-x64-Release.exe (for example.) as TrustedInstaller.\n" +
                 "If you have issues, ensure Secure Boot is disabled and Test Signing is enabled.\n" +
                 "Visit the GitHub repository for troubleshooting and updates.",
                 "EzAntiAntiCheat Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
