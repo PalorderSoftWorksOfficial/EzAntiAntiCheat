@@ -141,6 +141,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheatDriver\include;$(SolutionDir)\shared\includes</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AssemblerOutput>All</AssemblerOutput>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -158,6 +159,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheatDriver\include;$(SolutionDir)\shared\includes</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AssemblerOutput>All</AssemblerOutput>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -175,6 +177,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheatDriver\include;$(SolutionDir)\shared\includes</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AssemblerOutput>All</AssemblerOutput>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -192,6 +195,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheatDriver\include;$(SolutionDir)\shared\includes</AdditionalIncludeDirectories>
       <AssemblerOutput>All</AssemblerOutput>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -212,6 +216,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheatDriver\include;$(SolutionDir)\shared\includes</AdditionalIncludeDirectories>
       <AssemblerOutput>All</AssemblerOutput>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -232,6 +237,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\EzAntiAntiCheatDriver\include;$(SolutionDir)\shared\includes</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AssemblerOutput>All</AssemblerOutput>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
