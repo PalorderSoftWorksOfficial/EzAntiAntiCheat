@@ -205,10 +205,11 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
 
 void ListAndWipeProcess()
 {
+	// If you find this unclear this defines the anti cheats that are allowed to be targeted.
     static const std::vector<std::wstring> allowedExecutables = {
-         PROTECTED_EXE_NAME, L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe"
+         L"EasyAntiCheat.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe" , L"EasyAntiCheat_EOS.exe"
     };
-
+    
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnap == INVALID_HANDLE_VALUE) {
         std::string msg = "Failed to create process snapshot";

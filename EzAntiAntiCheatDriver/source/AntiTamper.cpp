@@ -1,6 +1,7 @@
 #include <ntifs.h>
 #include <ntstrsafe.h>
 #include "../include/DriverDefs.h"
+
 #ifndef BYTE
 typedef unsigned char BYTE;
 #endif
@@ -187,7 +188,7 @@ VOID CheckRegistryAcls(HANDLE hKey)
                     }
                     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
                         "[EasyAntiAntiCheat] Registry key has non-SYSTEM write ACE! This is a security risk.\n");
-                    KeBugCheckEx(MY_BUGCHECK_CODE, 0, 0, 0, 0);
+                    KeBugCheckEx(SECURE_KERNEL_ERROR, 0, 0, 0, 0);
                 }
             }
         }
@@ -314,7 +315,18 @@ VOID RestoreMemoryPage(PVOID address, SIZE_T size, BYTE* backup)
 // --- Unauthorized access rate limiting ---
 static LONG g_UnauthorizedAccessCount = 0;
 #define MAX_UNAUTHORIZED_ACCESS 100
-
+// some asshole tried putting an long string into an if statement buffer that compares an const char* not an const wchar_t*
+/**
+ * @wchar_t to char conversion for set var
+ */
+CHAR protectedNameAscii[260] = { 0 };
+NTSTATUS status = RtlUnicodeToMultiByteN(
+    protectedNameAscii,
+    sizeof(protectedNameAscii),
+    nullptr,
+    g_ProtectedProcessName,
+    (ULONG)(wcslen(g_ProtectedProcessName) * sizeof(WCHAR))
+);
 /**
  * @brief Handles memory access events, swaps memory if unauthorized.
  */
@@ -342,9 +354,10 @@ VOID OnMemoryAccess(PEPROCESS requestor, PEPROCESS target, PVOID address, SIZE_T
         }
         return;
     }
+
     // --- Controller executable logic unchanged ---
-    else if (_wcsicmp(g_ProtectedProcessName, L"EzAntiAntiCheat.exe") == 0 &&
-             targetName && _stricmp((const char*)targetName, "EzAntiAntiCheat.exe") == 0)
+    else if (_wcsicmp(g_ProtectedProcessName, g_ProtectedProcessName) == 0 &&
+             targetName && _stricmp((const char*)targetName, protectedNameAscii) == 0)
     {
         BYTE* backup = (BYTE*)ExAllocatePool2(POOL_FLAG_NON_PAGED, size, 'pgBK');
         if (backup)
@@ -389,7 +402,7 @@ VOID IntegrityThread(_In_ PVOID StartContext)
             InterlockedExchange(&g_IntegrityOk, TRUE);
             DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
                 "[EasyAntiAntiCheat] Integrity compromised! Initiating bugcheck.\n");
-            KeBugCheckEx(MY_BUGCHECK_CODE, 0, 0, 0, 0);
+            KeBugCheckEx(KERNEL_SECURITY_CHECK_FAILURE, 0, 0, 0, 0);
         }
 
         NTSTATUS waitStatus = KeWaitForSingleObject(&g_StopEvent, Executive, KernelMode, FALSE, &interval);
@@ -436,6 +449,7 @@ VOID ReadConfigFromRegistry()
                 {
                     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
                         "[EasyAntiAntiCheat] Watchdog disabled via registry! OH NO ME HEART STOP LULUAWEOHJWEIJHWERHEJAIHNIAERH IM FUCKING DIEING AOWEJHOEWARHOAHIERJAH.\n");
+                    SetLastErrorLog("[EasyAntiAntiCheat] Watchdog disabled via registry! OH NO ME HEART STOP LULUAWEOHJWEIJHWERHEJAIHNIAERH IM FUCKING DIEING AOWEJHOEWARHOAHIERJAH.");
                 }
             }
         }
@@ -495,8 +509,27 @@ VOID StopIntegrityThread()
     KeSetEvent(&g_StopEvent, IO_NO_INCREMENT, FALSE);
 }
 CHAR g_LastErrorLog[256] = {0};
+// just safe enough so no memory overflow occurs if it does blame PalorderSoftWorksOfficial for it, Yes me.
+#define MAX_ERROR_LOGS 128
+#define MAX_ERROR_LENGTH 1024
 
-void SetLastErrorLog(const char* culpritSid) {
-    RtlStringCbPrintfA(g_LastErrorLog, sizeof(g_LastErrorLog),
-        "Registry ACL violation detected!\nCulprit SID: %s\n", culpritSid);
+CHAR g_ErrorLogBuffer[MAX_ERROR_LOGS][MAX_ERROR_LENGTH] = { 0 };
+LONG g_ErrorLogIndex = 0; // points to next slot
+
+/**
+ * @brief Adds a new error message to the internal error buffer.
+ */
+void SetLastErrorLog(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    CHAR formatted[MAX_ERROR_LENGTH] = { 0 };
+    RtlStringCbVPrintfA(formatted, sizeof(formatted), format, args);
+    va_end(args);
+
+    // Store in circular buffer
+    LONG index = InterlockedIncrement(&g_ErrorLogIndex) - 1;
+    index = index % MAX_ERROR_LOGS;
+    RtlStringCbCopyA(g_ErrorLogBuffer[index], MAX_ERROR_LENGTH, formatted);
 }
