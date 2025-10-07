@@ -188,7 +188,7 @@ VOID CheckRegistryAcls(HANDLE hKey)
                     }
                     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
                         "[EasyAntiAntiCheat] Registry key has non-SYSTEM write ACE! This is a security risk.\n");
-                    KeBugCheckEx(SECURE_KERNEL_ERROR, 0, 0, 0, 0);
+                    KeBugCheckEx(KERNEL_SECURITY_CHECK_FAILURE_Win_env, 0, 0, 0, 0);
                 }
             }
         }
@@ -402,7 +402,7 @@ VOID IntegrityThread(_In_ PVOID StartContext)
             InterlockedExchange(&g_IntegrityOk, TRUE);
             DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
                 "[EasyAntiAntiCheat] Integrity compromised! Initiating bugcheck.\n");
-            KeBugCheckEx(KERNEL_SECURITY_CHECK_FAILURE, 0, 0, 0, 0);
+            KeBugCheckEx(KERNEL_SECURITY_CHECK_FAILURE_Win_env, 0, 0, 0, 0);
         }
 
         NTSTATUS waitStatus = KeWaitForSingleObject(&g_StopEvent, Executive, KernelMode, FALSE, &interval);
