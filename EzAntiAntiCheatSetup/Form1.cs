@@ -136,6 +136,7 @@ https://palordersoftworksofficial.github.io/EzAntiAntiCheat"
                 "If you have issues, ensure Secure Boot is disabled and Test Signing is enabled.\n" +
                 "Visit the GitHub repository for troubleshooting and updates.",
                 "EzAntiAntiCheat Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Process.Start(new ProcessStartInfo("https://palordersoftworksofficial.github.io/EzAntiAntiCheat") { UseShellExecute = true });
         }
     }
 }
