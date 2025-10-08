@@ -478,6 +478,57 @@ bool IsTestSigningEnabledViaBcdedit() {
     return false;
 }
 
+bool EnsureTestSigningAndDisableSecureBoot()
+{
+    bool secureBootEnabled = false;
+    HKEY hKey;
+    DWORD value = 0, valueSize = sizeof(DWORD);
+    LONG status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State",
+        0, KEY_QUERY_VALUE, &hKey);
+    if (status == ERROR_SUCCESS) {
+        if (RegQueryValueExW(hKey, L"UEFISecureBootEnabled", nullptr, nullptr, (LPBYTE)&value, &valueSize) == ERROR_SUCCESS) {
+            secureBootEnabled = (value != 0);
+        }
+        RegCloseKey(hKey);
+    }
+
+    // Use bcdedit parsing instead of registry for test signing
+    bool testSigningEnabled = IsTestSigningEnabledViaBcdedit();
+
+    if (secureBootEnabled) {
+        std::string msg = "Secure Boot is enabled. Please disable it in your UEFI firmware settings.";
+        std::cout << msg << "\n";
+        LogError(msg);
+        std::cin.get();
+        return false;
+    }
+
+    if (!testSigningEnabled) {
+        std::string msg = "Test Signing is not enabled. Attempting to enable...";
+        std::cout << msg << "\n";
+        LogError(msg);
+        int ret = system("bcdedit /set testsigning on");
+        if (ret != 0) {
+            std::string msg2 = "Failed to enable test signing. Run as administrator.";
+            std::cout << msg2 << "\n";
+            LogError(msg2);
+            std::cin.get();
+            return false;
+        }
+        std::string msg3 = "Test signing enabled. Please reboot your system for changes to take effect.";
+        std::cout << msg3 << "\n";
+        LogError(msg3);
+        std::cin.get();
+        return false;
+    }
+
+    std::string msg = "Secure Boot is disabled and Test Signing is enabled.";
+    std::cout << msg << "\n";
+    LogError(msg);
+    return true;
+}
+
 void RetrieveAndWriteErrorLog() {
     char errorLog[256] = {0};
     if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog))) {
@@ -543,6 +594,11 @@ int main()
         std::cout << msg << "\nPress any key to exit...";
         LogError(msg);
         std::cin.get();
+        return 1;
+    }
+
+    if (!EnsureTestSigningAndDisableSecureBoot()) {
+        LogError("Test signing or secure boot requirements not met.");
         return 1;
     }
 
