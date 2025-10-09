@@ -17,18 +17,22 @@ NTSTATUS TerminateProcessById(HANDLE pid);
 
 #elif defined(_M_X64) || defined(_WIN64)
 #ifdef _DEBUG
+#define PROTECTED_EXE_NAME_LONG L"EzAntiAntiCheat-x64-Debug.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x64-Debug.exe"
 #define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x64-Debug.exe"
 #else
+#define PROTECTED_EXE_NAME_LONG L"EzAntiAntiCheat-x64-Release.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x64-Release.exe"
 #define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x64-Release.exe"
 #endif
 
 #elif defined(_M_IX86)
 #ifdef _DEBUG
+#define PROTECTED_EXE_NAME_LONG   L"EzAntiAntiCheat-x86-Debug.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x86-Debug.exe"
 #define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x86-Debug.exe"
 #else
+#define PROTECTED_EXE_NAME_LONG   L"EzAntiAntiCheat-x86-Release.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x86-Release.exe"
 #define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x86-Release.exe"
 #endif
@@ -245,7 +249,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
 {
     UNREFERENCED_PARAMETER(RegistryPath);
 
-    UNICODE_STRING deviceName = RTL_CONSTANT_STRING(L"\\Device\\EzAntiAntiCheat");
+    UNICODE_STRING deviceName = RTL_CONSTANT_STRING(PROTECTED_EXE_NAME_LONG);
     NTSTATUS status = IoCreateDevice(DriverObject, 0, &deviceName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_DeviceObject);
     if (!NT_SUCCESS(status)) return status;
 
