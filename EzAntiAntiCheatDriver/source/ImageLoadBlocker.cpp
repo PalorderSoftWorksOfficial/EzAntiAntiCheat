@@ -9,32 +9,32 @@ NTSTATUS TerminateProcessById(HANDLE pid);
 #if defined(_M_ARM64)
 #ifdef _DEBUG
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-arm64-Debug.exe"
-#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-arm64-Debug.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheatDriver-arm64-Debug"
 #else
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-arm64-Release.exe"
-#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-arm64-Release.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheatDriver-arm64-Release"
 #endif
 
 #elif defined(_M_X64) || defined(_WIN64)
 #ifdef _DEBUG
 #define PROTECTED_EXE_NAME_LONG L"EzAntiAntiCheat-x64-Debug.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x64-Debug.exe"
-#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x64-Debug.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheatDriver-x64-Debug"
 #else
 #define PROTECTED_EXE_NAME_LONG L"EzAntiAntiCheat-x64-Release.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x64-Release.exe"
-#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x64-Release.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheatDriver-x64-Release"
 #endif
 
 #elif defined(_M_IX86)
 #ifdef _DEBUG
 #define PROTECTED_EXE_NAME_LONG   L"EzAntiAntiCheat-x86-Debug.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x86-Debug.exe"
-#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x86-Debug.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheatDriver-x86-Debug"
 #else
 #define PROTECTED_EXE_NAME_LONG   L"EzAntiAntiCheat-x86-Release.exe"
 #define PROTECTED_EXE_NAME   "EzAntiAntiCheat-x86-Release.exe"
-#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheat-x86-Release.exe"
+#define SYM_LINK_LITERAL     L"\\DosDevices\\EzAntiAntiCheatDriver-x86-Release"
 #endif
 
 #else
