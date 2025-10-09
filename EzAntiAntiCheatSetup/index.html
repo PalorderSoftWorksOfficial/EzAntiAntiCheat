@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EzAntiAntiCheat</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --fg: #f5f5f5;
+      --accent: #0078d7;
+      --accent-hover: #005a9e;
+      --card-bg: #1e1e1e;
+      --border: #333;
+      --shadow: rgba(0, 0, 0, 0.5);
+      --transition-speed: 0.5s;
+    }
+
+    /* Light mode variables */
+    :root.light-mode {
+      --bg: #ffffff;
+      --fg: #121212;
+      --accent: #0078d7;
+      --accent-hover: #005a9e;
+      --card-bg: #f5f5f5;
+      --border: #ddd;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--fg);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      transition: background-color var(--transition-speed), color var(--transition-speed);
+    }
+
+    header {
+      background-color: var(--card-bg);
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 8px var(--shadow);
+      transition: background-color var(--transition-speed);
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: bold;
+    }
+
+    header p {
+      color: var(--accent);
+      margin-top: 8px;
+      font-size: 1.2rem;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      background-color: var(--card-bg);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px var(--shadow);
+      z-index: 1000;
+      transition: background-color var(--transition-speed);
+    }
+
+    nav a {
+      color: var(--fg);
+      text-decoration: none;
+      margin: 0 10px;
+      font-size: 1rem;
+      transition: color var(--transition-speed);
+    }
+
+    nav a:hover {
+      color: var(--accent);
+    }
+
+    .theme-toggle {
+      background-color: var(--accent);
+      color: var(--fg);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color var(--transition-speed), transform var(--transition-speed);
+    }
+
+    .theme-toggle:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-2px);
+    }
+
+    section {
+        display: none;                 /* Hide by default */
+        opacity: 0;                    /* Start invisible */
+        position: relative;            /* Let them flow normally */
+        width: 100%;
+        padding: 40px 20px;
+        max-width: 900px;
+        margin: 0 auto;
+        transition: opacity var(--transition-speed);
+    }
+
+    section.active {
+        display: block;                /* Show the active one */
+        opacity: 1;                    /* Fully visible */
+    }
+
+
+    section h2 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    section p {
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px var(--shadow);
+      margin-bottom: 20px;
+      transition: background-color var(--transition-speed);
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+      color: var(--accent);
+    }
+
+    .card p {
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: inline-block;
+      background-color: var(--accent);
+      color: var(--fg);
+      padding: 10px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: background-color var(--transition-speed), transform var(--transition-speed);
+      box-shadow: 0 2px 4px var(--shadow);
+    }
+
+    .btn:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-2px);
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      background-color: var(--card-bg);
+      margin-top: 40px;
+      font-size: 0.9rem;
+      color: #777;
+      transition: background-color var(--transition-speed);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EzAntiAntiCheat™</h1>
+    <p>Welcome to the official website!</p>
+  </header>
+
+  <nav>
+    <div>
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <a href="#how-to-install">How to Install</a>
+      <a href="#download">Download</a>
+      <a href="#participation">Participation</a>
+      <a href="#youshouldvenotclicked">Dont click me :3</a>
+    </div>
+    <button class="theme-toggle" id="themeToggle">Switch to Light Mode</button>
+  </nav>
+  <main id="section-wrapper" style="position: relative; min-height: 600px;"></main>
+  <section id="home" class="active">
+    <h2>Welcome to EzAntiAntiCheat</h2>
+    <p>
+      EzAntiAntiCheat is a powerful tool designed to help developers bypass anti-cheat systems for testing purposes. Whether you're a game developer or a software enthusiast, this tool is here to simplify your workflow and empower your creativity.
+    </p>
+    <div class="card">
+      <h3>What is EzAntiAntiCheat?</h3>
+      <p>
+        EzAntiAntiCheat is a developer-focused tool that allows you to test your software in environments where anti-cheat systems might interfere. It’s designed to provide a seamless experience for testing and debugging.
+      </p>
+    </div>
+  </section>
+
+  <section id="about">
+    <h2>About PalorderSoftWorks™</h2>
+    <p>
+      PalorderSoftWorks™ — interesting name, right? It all started back in 2022 when I (still a minor at the time) had a dream of creating a coding company. That dream led to the creation of Palorder Corporation, the parent company of PalorderSoftWorks. Over time, PalorderSoftWorks became an independent company, dedicated to creating innovative software for gamers and developing indie games.
+    </p>
+  </section>
+  <section id="how-to-install">
+    <h2>How to Install</h2>
+    <div class="card">
+      <h3>Step 1: Install Certificate</h3>
+      <p>
+        Open the Certificate Manager (<code>certmgr.msc</code>) and import the provided <code>.pfx</code> file.
+      </p>
+    </div>
+  </section>
+
+  <section id="download">
+    <h2>Download</h2>
+    <p>Click the button below to download EzAntiAntiCheat:</p>
+    <a href="https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat/releases" class="btn">Download Now</a>
+  </section>
+
+  <section id="participation">
+    <h2>Participation</h2>
+    <p>
+      At PalorderSoftWorks, we believe in the power of collaboration. As a solo indie developer, I welcome contributions from passionate developers and enthusiasts who want to help maintain and improve EzAntiAntiCheat. Together, we can make this project even better!
+    </p>
+  </section>
+  <section id="youshouldvenotclicked">
+    <h2>:3</h2>
+    <p>
+    <img src="images/jumpscare.png" alt="jumpscare" width="400" style="border-radius: 8px;" />
+    </p>
+  </section>
+    </main>
+  <footer>
+    <p>&copy; 2025 PalorderSoftWorks. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const sections = document.querySelectorAll("section");
+    const navLinks = document.querySelectorAll("nav a");
+    const themeToggle = document.getElementById("themeToggle");
+    const root = document.documentElement;
+
+    function showSection(hash) {
+      const targetSection = document.querySelector(hash);
+      const activeSection = document.querySelector("section.active");
+
+      if (activeSection && activeSection !== targetSection) {
+        activeSection.classList.remove("active");
+      }
+
+      targetSection.classList.add("active");
+    }
+
+    window.addEventListener("hashchange", () => {
+      const hash = window.location.hash || "#home";
+      showSection(hash);
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const hash = window.location.hash || "#home";
+      showSection(hash);
+    });
+
+    themeToggle.addEventListener("click", () => {
+      if (root.classList.contains("light-mode")) {
+        root.classList.remove("light-mode");
+        themeToggle.textContent = "Switch to Light Mode";
+      } else {
+        root.classList.add("light-mode");
+        themeToggle.textContent = "Switch to Dark Mode";
+      }
+    });
+  </script>
+</body>
+</html>

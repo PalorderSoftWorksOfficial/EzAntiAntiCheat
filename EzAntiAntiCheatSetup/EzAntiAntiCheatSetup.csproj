@@ -1,73 +1,160 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
-    <RootNamespace>EzAntiAntiCheatSetup</RootNamespace>
-    <AssemblyName>EzAntiAntiCheatSetup</AssemblyName>
-    <ApplicationVersion>1.0.1</ApplicationVersion>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained> <!-- Bundles .NET runtime -->
-    <ApplicationIcon>icon.ico</ApplicationIcon>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <LangVersion>11.0</LangVersion>
-    <BaseOutputPath>$(SolutionDir)$(Platform)\$(ConfigurationName)EzAntiAntiCheatSetup</BaseOutputPath>
-    <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <Title>$(AssemblyName)</Title>
-    <Copyright>PalorderSoftWorks 2025.</Copyright>
-    <PackageProjectUrl>github.com/PalorderSoftworksOfficial/EzAntiAntiCheat</PackageProjectUrl>
-    <PackageIcon>icon.ico</PackageIcon>
-    <RepositoryUrl>github.com/PalorderSoftworksOfficial/EzAntiAntiCheat</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackAsTool>True</PackAsTool>
-    <NeutralLanguage>en</NeutralLanguage>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <AnalysisLevel>latest</AnalysisLevel>
-    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<UseWindowsForms>true</UseWindowsForms>
+		<RootNamespace>EzAntiAntiCheatSetup</RootNamespace>
+		<AssemblyName>EzAntiAntiCheatSetup</AssemblyName>
+		<ApplicationVersion>1.0.1</ApplicationVersion>
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>false</PublishSingleFile>
+		<ApplicationIcon>icon.ico</ApplicationIcon>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<LangVersion>11.0</LangVersion>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<Title>$(AssemblyName)</Title>
+		<Copyright>PalorderSoftWorks 2025.</Copyright>
+		<PackageProjectUrl>https://github.com/PalorderSoftworksOfficial/EzAntiAntiCheat</PackageProjectUrl>
+		<PackageIcon>icon.ico</PackageIcon>
+		<RepositoryUrl>https://github.com/PalorderSoftworksOfficial/EzAntiAntiCheat</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackAsTool>True</PackAsTool>
+		<NeutralLanguage>en</NeutralLanguage>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<AnalysisLevel>latest</AnalysisLevel>
+		<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+		<Platforms>x64;ARM64;x86;Win32;AnyCPU</Platforms>
+	</PropertyGroup>
 
-  <!-- Platform configurations -->
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-  </PropertyGroup>
+	<!-- Helper properties to prevent extra folder nesting -->
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-  </PropertyGroup>
+	<!-- Platform/Config-specific OutputPath -->
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <Optimize>False</Optimize>
-  </PropertyGroup>
-  <!-- Settings -->
-  <ItemGroup>
-    <None Include="..\EzAntiAntiCheat\icon.ico">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-    <None Include="..\LICENSE">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <None Include="app.config" />
-  </ItemGroup>
+	<!-- Debug x64 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+		<PlatformTarget>x64</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>$(SolutionDir)x64\Debug\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
 
-  <!-- Resources -->
-  <ItemGroup>
-    <Content Include="icon.ico" />
-  </ItemGroup>
+	<!-- Release x64 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+		<PlatformTarget>x64</PlatformTarget>
+		<DebugType>pdbonly</DebugType>
+		<Optimize>true</Optimize>
+		<OutputPath>$(SolutionDir)x64\Release\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
 
-  <!-- Post-build signing -->
-  <Target Name="PostBuildSign" AfterTargets="Build">
-    <Exec Command="&quot;C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SolutionDir)EzAntiAntiCheatCert.pfx&quot; /p NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg /tr http://timestamp.digicert.com /td SHA256 &quot;$(TargetPath)&quot;" />
-  </Target>
+	<!-- Debug ARM64 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+		<PlatformTarget>ARM64</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>$(SolutionDir)ARM64\Debug\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
 
+	<!-- Release ARM64 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+		<PlatformTarget>ARM64</PlatformTarget>
+		<DebugType>pdbonly</DebugType>
+		<Optimize>true</Optimize>
+		<OutputPath>$(SolutionDir)ARM64\Release\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Debug x86 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
+		<PlatformTarget>x86</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>$(SolutionDir)x86\Debug\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Release x86 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+		<PlatformTarget>x86</PlatformTarget>
+		<DebugType>pdbonly</DebugType>
+		<Optimize>true</Optimize>
+		<OutputPath>$(SolutionDir)x86\Release\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Debug Win32 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+		<PlatformTarget>Win32</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>$(SolutionDir)Win32\Debug\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Release Win32 -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+		<PlatformTarget>Win32</PlatformTarget>
+		<DebugType>pdbonly</DebugType>
+		<Optimize>true</Optimize>
+		<OutputPath>$(SolutionDir)Win32\Release\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Debug AnyCPU -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>$(SolutionDir)AnyCPU\Debug\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Release AnyCPU -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<Optimize>true</Optimize>
+		<OutputPath>$(SolutionDir)AnyCPU\Release\EzAntiAntiCheatSetup\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Settings and Resources -->
+	<ItemGroup>
+		<None Include="..\EzAntiAntiCheat\icon.ico">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="..\LICENSE">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Include="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+		<None Include="app.config" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="icon.ico" />
+	</ItemGroup>
+	<!-- Post-publish signing for all EXE/DLL files -->
+	<Target Name="PostPublishSign" AfterTargets="Publish">
+		<!-- Collect all EXE/DLL files in the publish folder -->
+		<ItemGroup>
+			<PublishFiles Include="$(PublishDir)**\*.exe" />
+			<PublishFiles Include="$(PublishDir)**\*.dll" />
+		</ItemGroup>
+
+		<!-- Sign each file if not already signed -->
+		<Exec Command="powershell -Command &quot;
+    foreach ($f in @( @(PublishFiles->'%(FullPath)') )) {
+        if ((Get-AuthenticodeSignature $f).Status -ne 'Valid') {
+            &quot;C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe&quot; sign /fd SHA256 /f &quot;$(SolutionDir)EzAntiAntiCheatCert.pfx&quot; /p NjA2N0FFNTU4NjNCMEY5Q0ZFRjFBMkU5NDQ3MURDNjlGN0ZBODVCQg /tr http://timestamp.digicert.com /td SHA256 $f
+        }
+    }
+  &quot;" />
+	</Target>
 </Project>

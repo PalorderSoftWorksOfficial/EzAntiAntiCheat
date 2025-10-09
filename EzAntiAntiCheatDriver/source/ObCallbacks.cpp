@@ -42,10 +42,7 @@
 
 // ==================== Whitelist of protected anti-cheat process names ====================
 static const char* const g_ProtectedProcesses[] = {
-    PROTECTED_EAC_EXE,
-    "rbxhyperion.exe",
-    "vgk.exe",
-    "Vanguard.exe"
+    PROTECTED_EAC_EXE
 };
 
 // ==================== Global callback handle ====================

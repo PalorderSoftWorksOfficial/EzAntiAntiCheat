@@ -1,3 +1,5 @@
+ # DISCLAIMER:
+ # EzAntiAntiCheat is NOT an General purpose program that is why the test signing certificate is in the repo and this program is meant for developers and for anti cheat testers and for nerdy gamers
  # Q&A
 Q: What is EasyAntiAntiCheat
 A: A program that can safely wipe selected anti cheats that are kernel level

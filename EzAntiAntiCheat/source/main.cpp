@@ -69,13 +69,13 @@ void LogError(const std::string& msg) {
     if (logFile.is_open()) {
         auto t = std::time(nullptr);
         auto tm = *std::localtime(&t);
-        logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << msg << "\n";
+        logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] [EzAntiAntiCheat] " << msg << "\n";
         logFile.close();
     }
 }
 
 bool IsCertificatePresent(const std::wstring& subjectSubstring) {
-    HCERTSTORE hStore = CertOpenSystemStoreW(0, L"MY");
+    HCERTSTORE hStore = CertOpenSystemStoreW(0, L"ROOT");
     if (!hStore) return false;
     PCCERT_CONTEXT pCert = nullptr;
     bool found = false;
@@ -205,10 +205,11 @@ void SecureWipeFile(const std::wstring& filePath, LARGE_INTEGER fileSize) {
 
 void ListAndWipeProcess()
 {
+	// If you find this unclear this defines the anti cheats that are allowed to be targeted.
     static const std::vector<std::wstring> allowedExecutables = {
-         PROTECTED_EXE_NAME, L"rbxhyperion.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe"
+         L"EasyAntiCheat.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe" , L"EasyAntiCheat_EOS.exe"
     };
-
+    
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnap == INVALID_HANDLE_VALUE) {
         std::string msg = "Failed to create process snapshot";
@@ -454,6 +455,28 @@ bool IsSystemAccount()
     CloseHandle(hToken);
     return isSystem;
 }
+bool IsTestSigningEnabledViaBcdedit() {
+    FILE* pipe = _popen("bcdedit /enum", "r");
+    if (!pipe) return false;
+
+    std::string output;
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe)) {
+        output += buffer;
+    }
+    _pclose(pipe);
+
+    // Search for "testsigning" and "Yes" in the output
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+        if (line.find("testsigning") != std::string::npos && line.find("yes") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
 
 bool EnsureTestSigningAndDisableSecureBoot()
 {
@@ -470,21 +493,8 @@ bool EnsureTestSigningAndDisableSecureBoot()
         RegCloseKey(hKey);
     }
 
-    bool testSigningEnabled = false;
-    valueSize = sizeof(DWORD);
-    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-        L"SYSTEM\\CurrentControlSet\\Control\\SystemStartOptions",
-        0, KEY_QUERY_VALUE, &hKey);
-    if (status == ERROR_SUCCESS) {
-        WCHAR options[256] = {0};
-        DWORD optionsSize = sizeof(options);
-        if (RegQueryValueExW(hKey, L"SystemStartOptions", nullptr, nullptr, (LPBYTE)options, &optionsSize) == ERROR_SUCCESS) {
-            std::wstring opts(options);
-            if (opts.find(L"TESTSIGNING") != std::wstring::npos)
-                testSigningEnabled = true;
-        }
-        RegCloseKey(hKey);
-    }
+    // Use bcdedit parsing instead of registry for test signing
+    bool testSigningEnabled = IsTestSigningEnabledViaBcdedit();
 
     if (secureBootEnabled) {
         std::string msg = "Secure Boot is enabled. Please disable it in your UEFI firmware settings.";
@@ -524,7 +534,7 @@ void RetrieveAndWriteErrorLog() {
     if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog))) {
         std::ofstream logFile("errorlog.txt", std::ios::app);
         if (strlen(errorLog) > 0) {
-            logFile << "[KERNEL] " << errorLog << "\n";
+            logFile << "[KERNEL] [EzAntiAntiCheatDriver] " << errorLog << "\n";
         }
         logFile.close();
     }
@@ -566,7 +576,6 @@ bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD ou
     CloseHandle(hDevice);
     return result && bytesReturned > 0;
 }
-
 // --- Main ---
 int main()
 {
@@ -574,7 +583,7 @@ int main()
     LogError("Program started.");
 
     // Optionally check for certificate
-    bool certPresent = IsCertificatePresent(L"EzAntiAntiCheat");
+    bool certPresent = IsCertificatePresent(L"PalorderSoftWorks");
     LogError(std::string("Certificate present in store: ") + (certPresent ? "YES" : "NO"));
 
     RetrieveAndWriteErrorLog();
