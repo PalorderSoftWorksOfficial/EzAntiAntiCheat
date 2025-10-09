@@ -1,5 +1,6 @@
 #include <ntifs.h>
 #include <ntstrsafe.h>
+#include <strsafe.h>
 #include "../include/DriverDefs.h"
 
 #ifndef BYTE
@@ -41,9 +42,7 @@ BOOLEAN g_EnableWatchdog = TRUE;
 WCHAR g_ProtectedProcessName[260];
 CHAR g_LastErrorLog[256];
 
-#define MAX_ERROR_LOGS 128
-#define MAX_ERROR_LENGTH 1024
-CHAR g_ErrorLogBuffer[MAX_ERROR_LOGS][MAX_ERROR_LENGTH];
+CHAR g_ErrorLogBuffer[MAX_ERROR_LOGS][MAX_ERROR_LENGTH] = { 0 };
 LONG g_ErrorLogIndex = 0;
 
 // --- CRC32 Table ---

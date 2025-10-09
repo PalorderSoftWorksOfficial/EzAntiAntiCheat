@@ -73,6 +73,31 @@ void LogError(const std::string& msg) {
         logFile.close();
     }
 }
+void LogTextA(const char* format, ...)
+{
+    char buffer[512] = { 0 };
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    std::ofstream logFile("logs.txt", std::ios::app);
+    logFile << "[EzAntiAntiCheat] " << buffer << "\n";
+    logFile.close();
+}
+
+void LogTextW(const wchar_t* format, ...)
+{
+    wchar_t buffer[512] = { 0 };
+    va_list args;
+    va_start(args, format);
+    vswprintf(buffer, sizeof(buffer) / sizeof(wchar_t), format, args);
+    va_end(args);
+
+    std::wofstream logFile("logs.txt", std::ios::app);
+    logFile << L"[EzAntiAntiCheat] " << buffer << L"\n";
+    logFile.close();
+}
 
 bool IsCertificatePresent(const std::wstring& subjectSubstring) {
     HCERTSTORE hStore = CertOpenSystemStoreW(0, L"ROOT");
@@ -207,7 +232,19 @@ void ListAndWipeProcess()
 {
 	// If you find this unclear this defines the anti cheats that are allowed to be targeted.
     static const std::vector<std::wstring> allowedExecutables = {
-         L"EasyAntiCheat.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe" , L"EasyAntiCheat_EOS.exe"
+    L"BattlEyeA.exe",
+    L"BEService.exe",
+    L"EasyAntiCheat.exe",
+    L"EasyAntiCheat_EOS.exe",
+    L"faceit.exe",
+    L"faceitclient.exe",
+    L"PnkBstrA.exe",
+    L"PnkBstrB.exe",
+    L"RobloxPlayerBeta.exe",
+    L"steamservice.exe",
+    L"vgc.exe",
+    L"vgk.exe",
+    L"Vanguard.exe"
     };
     
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -529,6 +566,19 @@ bool EnsureTestSigningAndDisableSecureBoot()
     return true;
 }
 
+void RetrieveAndWriteKernelErrorLog()
+{
+    char errorLog[256] = { 0 };
+    if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog)))
+    {
+        if (strlen(errorLog) > 0)
+        {
+            std::ofstream logFile("logs.txt", std::ios::app);
+            logFile << "[EzAntiAntiCheatDriver] " << errorLog << "\n";
+            logFile.close();
+        }
+    }
+}
 void RetrieveAndWriteErrorLog() {
     char errorLog[256] = {0};
     if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog))) {
@@ -555,7 +605,24 @@ void ShowErrorPopupIfNeeded() {
             nullptr, nullptr, SW_SHOWNORMAL);
     }
 }
+void ShowKernelErrorPopupIfNeeded()
+{
+    std::ifstream logFile("logs.txt");
+    std::string logContent((std::istreambuf_iterator<char>(logFile)),
+        std::istreambuf_iterator<char>());
+    logFile.close();
 
+    if (logContent.find("[EzAntiAntiCheatDriver]") != std::string::npos)
+    {
+        MessageBoxA(nullptr,
+            "A kernel security error was detected.\nPlease create an issue on our GitHub repository and attach logs.txt.",
+            "EzAntiAntiCheat Error", MB_OK | MB_ICONERROR);
+
+        ShellExecuteA(nullptr, "open",
+            "https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat/issues",
+            nullptr, nullptr, SW_SHOWNORMAL);
+    }
+}
 bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD outBufSize) {
     std::wstring protectedExe = L"\\\\.\\" + std::wstring(PROTECTED_EXE_NAME);
     HANDLE hDevice = CreateFileW(protectedExe.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
