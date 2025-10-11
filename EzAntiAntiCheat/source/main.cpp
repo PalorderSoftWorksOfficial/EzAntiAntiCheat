@@ -79,6 +79,7 @@ void EnsureLanguagesFileExists()
 
     if (!std::filesystem::exists(langFilePath))
     {
+        // USE THE en language as an template!
         json defaultLang = {
     {"en", {
         {"program_started", "Program started."},
@@ -348,6 +349,7 @@ void LoadLanguage()
     case LANG_RUSSIAN: g_languageCode = L"ru"; break;
     case LANG_CZECH: g_languageCode = L"cs"; break;
     case LANG_HUNGARIAN: g_languageCode = L"hu"; break;
+
     case LANG_CHINESE: g_languageCode = L"zh"; break;
     case LANG_JAPANESE: g_languageCode = L"ja"; break;
     default: g_languageCode = L"en"; break;
