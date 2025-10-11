@@ -1,4 +1,4 @@
-#define NOMINMAX
+﻿#define NOMINMAX
 #include <windows.h>
 #include <string>
 #include <winreg.h>
@@ -17,12 +17,15 @@
 #include <random>
 #include <limits>
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <wincrypt.h>
 #include "IoctlDefs.h"
 #include "../include/ControllerDefs.h"
 #include <shellapi.h>
+#include <external_data.h>
+#include <json.hpp>
 #pragma comment(lib, "crypt32.lib")
 #if defined(_M_ARM64)
 #ifdef _DEBUG
@@ -55,23 +58,172 @@
 #error Unsupported architecture
 #endif
 
+using json = nlohmann::json;
+
+json g_languageJson;
+std::wstring g_languageCode = L"en";
+
+void EnsureLanguagesFileExists()
+{
+    wchar_t exePath[MAX_PATH] = { 0 };
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    std::wstring exeDir(exePath);
+    size_t lastSlash = exeDir.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos)
+        exeDir = exeDir.substr(0, lastSlash);
+
+    std::filesystem::path languagesFolder = exeDir + L"\\languages";
+    std::filesystem::create_directories(languagesFolder);
+
+    std::filesystem::path langFilePath = languagesFolder / "languages.json";
+
+    if (!std::filesystem::exists(langFilePath))
+    {
+        json defaultLang = {
+            {"en", {
+                {"program_started", "Program started."},
+                {"protection_enabled", "Protection enabled"},
+                {"protection_disabled", "Protection disabled"},
+                {"exit_msg", "Exiting"},
+                {"invalid_choice", "Invalid choice"},
+                {"service_installed", "Service installed and started successfully"},
+                {"service_failed", "Failed to install/start service"},
+                {"select_process", "Select process to terminate and wipe (0 to cancel):"},
+                {"cancelled", "Cancelled"},
+                {"process_terminated", "Process terminated:"},
+                {"backup_created", "Backup created:"},
+                {"failed_backup", "Failed to create backup at:"},
+                {"failed_wipe", "Failed to write random data to file:"},
+                {"kernel_error_detected", "A kernel security error was detected.\nPlease create an issue on our GitHub repository and attach errorlog.txt."}
+            }},
+            {"de", {
+                {"program_started", "Programm gestartet."},
+                {"protection_enabled", "Schutz aktiviert"},
+                {"protection_disabled", "Schutz deaktiviert"},
+                {"exit_msg", "Beenden"},
+                {"invalid_choice", "Ungültige Auswahl"},
+                {"service_installed", "Dienst erfolgreich installiert und gestartet"},
+                {"service_failed", "Dienstinstallation/-start fehlgeschlagen"},
+                {"select_process", "Prozess zum Beenden und Löschen auswählen (0 zum Abbrechen):"},
+                {"cancelled", "Abgebrochen"},
+                {"process_terminated", "Prozess beendet:"},
+                {"backup_created", "Backup erstellt:"},
+                {"failed_backup", "Backup konnte nicht erstellt werden:"},
+                {"failed_wipe", "Fehler beim Überschreiben der Datei:"},
+                {"kernel_error_detected", "Ein Kernel-Sicherheitsfehler wurde erkannt.\nBitte erstellen Sie ein Issue auf unserem GitHub-Repository und fügen Sie errorlog.txt bei."}
+            }},
+            {"fr", {
+                {"program_started", "Programme démarré."},
+                {"protection_enabled", "Protection activée"},
+                {"protection_disabled", "Protection désactivée"},
+                {"exit_msg", "Quitter"},
+                {"invalid_choice", "Choix invalide"},
+                {"service_installed", "Service installé et démarré avec succès"},
+                {"service_failed", "Échec de l'installation/démarrage du service"},
+                {"select_process", "Sélectionnez le processus à terminer et effacer (0 pour annuler):"},
+                {"cancelled", "Annulé"},
+                {"process_terminated", "Processus terminé:"},
+                {"backup_created", "Sauvegarde créée:"},
+                {"failed_backup", "Échec de la création de la sauvegarde:"},
+                {"failed_wipe", "Échec de l'écriture de données aléatoires sur le fichier:"},
+                {"kernel_error_detected", "Une erreur de sécurité du noyau a été détectée.\nVeuillez créer un problème sur notre dépôt GitHub et joindre errorlog.txt."}
+            }},
+            {"es", {
+                {"program_started", "Programa iniciado."},
+                {"protection_enabled", "Protección activada"},
+                {"protection_disabled", "Protección desactivada"},
+                {"exit_msg", "Salir"},
+                {"invalid_choice", "Opción inválida"},
+                {"service_installed", "Servicio instalado e iniciado correctamente"},
+                {"service_failed", "Error al instalar/iniciar el servicio"},
+                {"select_process", "Seleccione el proceso a terminar y borrar (0 para cancelar):"},
+                {"cancelled", "Cancelado"},
+                {"process_terminated", "Proceso terminado:"},
+                {"backup_created", "Copia de seguridad creada:"},
+                {"failed_backup", "Error al crear la copia de seguridad:"},
+                {"failed_wipe", "Error al escribir datos aleatorios en el archivo:"},
+                {"kernel_error_detected", "Se detectó un error de seguridad del kernel.\nPor favor, cree un issue en nuestro repositorio de GitHub y adjunte errorlog.txt."}
+            }}
+        };
+
+        std::ofstream ofs(langFilePath);
+        ofs << std::setw(4) << defaultLang << std::endl;
+    }
+}
+
+void LoadLanguage()
+{
+    EnsureLanguagesFileExists();
+
+    LANGID langId = GetUserDefaultUILanguage();
+    switch (PRIMARYLANGID(langId))
+    {
+    case LANG_GERMAN: g_languageCode = L"de"; break;
+    case LANG_FRENCH: g_languageCode = L"fr"; break;
+    case LANG_SPANISH: g_languageCode = L"es"; break;
+    case LANG_ITALIAN: g_languageCode = L"it"; break;
+    case LANG_RUSSIAN: g_languageCode = L"ru"; break;
+    case LANG_CHINESE: g_languageCode = L"zh"; break;
+    case LANG_JAPANESE: g_languageCode = L"ja"; break;
+    default: g_languageCode = L"en"; break;
+    }
+
+    wchar_t exePath[MAX_PATH] = { 0 };
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    std::wstring exeDir(exePath);
+    exeDir = exeDir.substr(0, exeDir.find_last_of(L"\\/"));
+
+    std::filesystem::path langFilePath = exeDir + L"\\languages\\languages.json";
+
+    std::ifstream langFile(langFilePath);
+    if (!langFile.is_open())
+        return;
+
+    try
+    {
+        json allLanguages;
+        langFile >> allLanguages;
+
+        std::string codeStr(g_languageCode.begin(), g_languageCode.end());
+        if (allLanguages.contains(codeStr))
+            g_languageJson = allLanguages[codeStr];
+        else
+            g_languageJson = allLanguages["en"];
+    }
+    catch (...) {}
+}
+
+std::string LStr(const std::string& key)
+{
+    if (g_languageJson.contains(key))
+        return g_languageJson[key].get<std::string>();
+    return key;
+}
 // --- Error Logging ---
 void InitErrorLog() {
     std::ofstream logFile("errorlog.txt", std::ios::out | std::ios::trunc);
-    auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
-    logFile << "EzAntiAntiCheat Log Started: " << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "\n";
+    if (!logFile.is_open()) return;
+
+    std::time_t t = std::time(nullptr);
+    std::tm tm;
+    localtime_s(&tm, &t);
+
+    logFile << "EzAntiAntiCheat Log Started: "
+        << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "\n";
     logFile.close();
 }
 
 void LogError(const std::string& msg) {
     std::ofstream logFile("errorlog.txt", std::ios::app);
-    if (logFile.is_open()) {
-        auto t = std::time(nullptr);
-        auto tm = *std::localtime(&t);
-        logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] [EzAntiAntiCheat] " << msg << "\n";
-        logFile.close();
-    }
+    if (!logFile.is_open()) return;
+
+    std::time_t t = std::time(nullptr);
+    std::tm tm;
+    localtime_s(&tm, &t);
+
+    logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] [EzAntiAntiCheat] "
+        << msg << "\n";
+    logFile.close();
 }
 void LogTextA(const char* format, ...)
 {
@@ -646,19 +798,25 @@ bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD ou
 // --- Main ---
 int main()
 {
-    InitErrorLog();
-    LogTextW(L"Program started.");
+    size_t count = sizeof(CAPS) / sizeof(CAPS[0]);
+    SerialEntry* dyn = (SerialEntry*)malloc(count * sizeof(SerialEntry));
 
-    // Optionally check for certificate
-    bool certPresent = IsCertificatePresent(L"PalorderSoftWorks");
-    LogTextW(L"Certificate present in store: " + certPresent ? L"YES" : L"NO");
-    RetrieveAndWriteErrorLog();
-    ShowErrorPopupIfNeeded();
+    for (size_t i = 0; i < count; i++) {
+        dyn[i].id = CAPS[i].id;
+        dyn[i].hash = CAPS[i].hash;
+        dyn[i].serial = _wcsdup(CAPS[i].serial);
+    }
+
+    LoadLanguage();
+
+    InitErrorLog();
+    LogError("Program started.");
+
+    std::cout << LStr("welcome_message") << "\n";
 
     if (!IsSystemAccount()) {
-        std::string msg = "This application must be run as NT AUTHORITY\\SYSTEM, and disable secure boot and enable test signing.";
-        std::cout << msg << "\nPress any key to exit...";
-        LogError(msg);
+        std::cout << LStr("run_as_system") << "\n";
+        LogError("Not running as SYSTEM account.");
         std::cin.get();
         return 1;
     }
@@ -675,6 +833,6 @@ int main()
     if (g_ServiceInstalled)
         UnloadDriver();
 
-    LogTextW(L"Program exited.");
+    LogError("Program exited.");
     return 0;
 }
