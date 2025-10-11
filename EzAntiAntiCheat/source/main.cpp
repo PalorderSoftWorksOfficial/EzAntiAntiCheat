@@ -647,12 +647,11 @@ bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD ou
 int main()
 {
     InitErrorLog();
-    LogError("Program started.");
+    LogTextW(L"Program started.");
 
     // Optionally check for certificate
     bool certPresent = IsCertificatePresent(L"PalorderSoftWorks");
-    LogError(std::string("Certificate present in store: ") + (certPresent ? "YES" : "NO"));
-
+    LogTextW(L"Certificate present in store: " + certPresent ? L"YES" : L"NO");
     RetrieveAndWriteErrorLog();
     ShowErrorPopupIfNeeded();
 
@@ -676,6 +675,6 @@ int main()
     if (g_ServiceInstalled)
         UnloadDriver();
 
-    LogError("Program exited.");
+    LogTextW(L"Program exited.");
     return 0;
 }
