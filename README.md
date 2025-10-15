@@ -12,4 +12,5 @@ you need too run the exe as TrustedInstaller you can use tools like ExecTI/Advan
 ## Important!
 EzAntiAntiCheat Repo is not up to date if the latest commit is more then 3 weeks old as i forgot to commit patches too the repository and i have seen im missing releases and im gonna bundle AdvanedRun with it in the releases or execTi with the sourcecode from EzAntiAntiCheat and the exe driver and note you can compile them yourself and to run you use advancedrun/ExecTi so you can install the driver (It does it automaticlly) and EzAntiAntiCheat.exe wont run if you dont run it as TrustedInstaller or NT Authority/SYSTEM
 Please Enjoy using my program.
+(with small help from Cosmo)
 Copyright: © PalorderSoftWorks 2025.
