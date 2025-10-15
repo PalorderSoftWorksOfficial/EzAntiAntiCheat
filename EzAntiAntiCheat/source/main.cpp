@@ -3,6 +3,7 @@
 #include <string>
 #include <winreg.h>
 #include <algorithm>
+#include "..\resource.h"
 #undef max
 #undef min
 #include <aclapi.h>
@@ -26,6 +27,8 @@
 #include <shellapi.h>
 #include <external_data.h>
 #include <json.hpp>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "crypt32.lib")
 #if defined(_M_ARM64)
 #ifdef _DEBUG
@@ -80,6 +83,7 @@ void EnsureLanguagesFileExists()
     if (!std::filesystem::exists(langFilePath))
     {
         // USE THE en language as an template!
+	    // blank.
         json defaultLang = {
     {"en", {
         {"program_started", "Program started."},
@@ -790,7 +794,29 @@ void RunMenu()
         case 4:
             ListAndWipeProcess();
             break;
+        case 1912:
+        {
+            HRSRC hRes = FindResource(NULL, MAKEINTRESOURCE(IDR_MP3_SOUND), RT_RCDATA);
+            if (!hRes) break;
+            HGLOBAL hData = LoadResource(NULL, hRes);
+            if (!hData) break;
+            DWORD size = SizeofResource(NULL, hRes);
+            void* pData = LockResource(hData);
 
+            WCHAR tempPath[MAX_PATH], tempFile[MAX_PATH];
+            GetTempPathW(MAX_PATH, tempPath);
+            GetTempFileNameW(tempPath, L"mp3", 0, tempFile);
+
+            HANDLE hFile = CreateFileW(tempFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hFile != INVALID_HANDLE_VALUE) {
+                DWORD written;
+                WriteFile(hFile, pData, size, &written, NULL);
+                CloseHandle(hFile);
+                PlaySoundW(tempFile, NULL, SND_FILENAME | SND_ASYNC);
+                DeleteFileW(tempFile);
+            }
+            break;
+        }
         case 0:
             std::cout << "Exiting\n";
             LogError("Exiting");
