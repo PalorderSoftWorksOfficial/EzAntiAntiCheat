@@ -1,3 +1,4 @@
+ DONT FUCKING ASK ME TO ADD PUNCTUATIONS 
  # DISCLAIMER:
  # EzAntiAntiCheat is NOT an General purpose program that is why the test signing certificate is in the repo and this program is meant for developers and for anti cheat testers and for nerdy gamers
  # Q&A
