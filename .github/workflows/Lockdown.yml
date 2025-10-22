@@ -1,0 +1,39 @@
+name: 'Repo Lockdown'
+
+on:
+  issues:
+    types: opened
+  pull_request_target:
+    types: opened
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      enable_workflow:
+        description: 'Enable or disable the workflow'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if workflow is enabled
+        run: |
+          if [[ "${{ github.event.inputs.enable_workflow }}" == "false" ]]; then
+            echo "Workflow is disabled. Exiting."
+            exit 0
+          fi
+          
+      - uses: dessant/repo-lockdown@v2
+        with:
+          issue-comment: 'PalorderSoftWorks does not accept issues on this repository currently.'
+          pr-comment: 'PalorderSoftWorks does not accept pull requests on this repository currently.'

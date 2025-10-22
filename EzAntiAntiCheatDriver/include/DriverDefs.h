@@ -62,6 +62,13 @@
 #define STATUS_CANNOT_LOAD_REGISTRY_FILE_Win_env 0xC0000218 // Cannot load registry file
 #define STATUS_SYSTEM_PROCESS_TERMINATED_Win_env 0xC000021A // System process terminated
 
+#define MAX_ERROR_LOGS 128
+#define MAX_ERROR_LENGTH 1024
+
+extern CHAR g_ErrorLogBuffer[MAX_ERROR_LOGS][MAX_ERROR_LENGTH];
+extern LONG g_ErrorLogIndex;
+
+void SetLastErrorLog(const char* format, ...);
 #ifdef __cplusplus
 extern "C" {
 #endif

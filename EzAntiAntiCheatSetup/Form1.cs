@@ -95,7 +95,7 @@ https://palordersoftworksofficial.github.io/EzAntiAntiCheat"
 
             btnOpenEzAnti = new Button
             {
-                Text = "Open EzAntiAntiCheat Folder",
+                Text = "Open Install Folder",
                 Top = btnAdvancedRun.Bottom + 10,
                 Left = 20,
                 Width = 200
@@ -105,7 +105,7 @@ https://palordersoftworksofficial.github.io/EzAntiAntiCheat"
 
             btnHelp = new Button
             {
-                Text = "Help / GitHub",
+                Text = "Help / Website",
                 Top = btnAdvancedRun.Bottom + 10,
                 Left = btnOpenEzAnti.Right + 10,
                 Width = 200
@@ -131,12 +131,13 @@ https://palordersoftworksofficial.github.io/EzAntiAntiCheat"
 
         private void BtnHelp_Click(object sender, EventArgs e)
         {
+            Process.Start(new ProcessStartInfo("https://palordersoftworksofficial.github.io/EzAntiAntiCheat") { UseShellExecute = true });
             MessageBox.Show(
                 "For best results, use AdvancedRun to launch EzAntiAntiCheat-x64-Release.exe (for example.) as TrustedInstaller.\n" +
                 "If you have issues, ensure Secure Boot is disabled and Test Signing is enabled.\n" +
                 "Visit the GitHub repository for troubleshooting and updates.",
                 "EzAntiAntiCheat Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            Process.Start(new ProcessStartInfo("https://palordersoftworksofficial.github.io/EzAntiAntiCheat") { UseShellExecute = true });
+            
         }
     }
 }

@@ -50,20 +50,30 @@ static volatile LONG g_ProtectionEnabled = 0;
 PDEVICE_OBJECT g_DeviceObject = nullptr;
 
 // ==================== Helpers ====================
-BOOLEAN IsCallerSystem()
+BOOLEAN IsCallerAllowed()
 {
     PEPROCESS caller = PsGetCurrentProcess();
     UCHAR* imageName = PsGetProcessImageFileName(caller);
     if (!imageName) return FALSE;
 
+    // Always allow SYSTEM
     if (_stricmp((const char*)imageName, "System") == 0)
         return TRUE;
 
-    if (_stricmp((const char*)imageName, g_ProtectedProcessNameA) == 0)
-        return TRUE;
+    // Allow management EXE
+    ANSI_STRING callerAnsi;
+    RtlInitAnsiString(&callerAnsi, (PCSZ)imageName);
+    UNICODE_STRING callerUnicode;
+    if (NT_SUCCESS(RtlAnsiStringToUnicodeString(&callerUnicode, &callerAnsi, TRUE)))
+    {
+        BOOLEAN result = (_wcsicmp(callerUnicode.Buffer, PROTECTED_EXE_NAME_LONG) == 0);
+        RtlFreeUnicodeString(&callerUnicode);
+        return result;
+    }
 
     return FALSE;
 }
+
 
 NTSTATUS RemoveCriticalFlag(PEPROCESS Process)
 {
@@ -148,8 +158,8 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     ULONG_PTR info = 0;
     ULONG pid = 0; // Declare here, before switch
 
-    // Access control: Only allow SYSTEM or protected process
-    if (!IsCallerSystem())
+    // Access control: Only allow SYSTEM or protected 
+    if (!IsCallerAllowed())
     {
         DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
             "[EzAntiAntiCheatDriver] Unauthorized IOCTL caller\n");
@@ -200,14 +210,18 @@ NTSTATUS DriverDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         status = TerminateProcessById((HANDLE)pid);
         break;
     case IOCTL_GET_LAST_ERROR_LOG:
-        if (stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(g_LastErrorLog)) {
+    {
+        if (stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(g_ErrorLogBuffer)) {
             status = STATUS_BUFFER_TOO_SMALL;
             break;
         }
-        RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, g_LastErrorLog, sizeof(g_LastErrorLog));
-        Irp->IoStatus.Information = sizeof(g_LastErrorLog);
+
+        // Copy all logs (circular buffer) to the user output buffer
+        RtlCopyMemory(Irp->AssociatedIrp.SystemBuffer, g_ErrorLogBuffer, sizeof(g_ErrorLogBuffer));
+        Irp->IoStatus.Information = sizeof(g_ErrorLogBuffer);
         status = STATUS_SUCCESS;
         break;
+    }
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         break;

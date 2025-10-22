@@ -5,17 +5,17 @@ ProjectFileVersion = 1.1
 Program name = EzAntiAntiCheat
 Program version = 1.0
 Windows XP = 0
-Windows Server 2003 = 1
-Windows Vista = 1
-Windows Server 2008 = 1
-Windows 7 = 1
-Windows 8 = 1
+Windows Server 2003 = 0
+Windows Vista = 0
+Windows Server 2008 = 0
+Windows 7 = 0
+Windows 8 = 0
 Windows 10 = 1
-Windows Server 2016 = 1
+Windows Server 2016 = 0
 Windows Server 2019 = 1
 Windows Server 2022 = 1
 Windows 11 = 1
-DoNotCheckOS = 1
+DoNotCheckOS = 0
 Company name = PalorderSoftworks @ 2025
 Website = https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat
 SFA = 1
@@ -98,11 +98,11 @@ C:\EzAntiAntiCheat\AnyCPU\EzAntiAntiCheatSetup\Release\net8.0-windows\win-x64\
 N/A
 [Folder]
 [Licence_Begin]
-39115
-{\rtf1\fbidis\ansi\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Arial;}{\f1\fnil Arial;}}
+39109
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Arial;}{\f1\fnil Arial;}}
 {\colortbl ;\red0\green0\blue255;}
 {\*\generator Riched20 10.0.26100}\viewkind4\uc1 
-\pard\ltrpar\cf0\fs20\lang1043                     GNU GENERAL PUBLIC LICENSE\par
+\pard\fs20\lang1043                     GNU GENERAL PUBLIC LICENSE\par
                        Version 3, 29 June 2007\par
 \par
  Copyright (C) 2007 Free Software Foundation, Inc. <{{\field{\*\fldinst{HYPERLINK "https://fsf.org/"}}{\fldrslt{https://fsf.org/\ul0\cf0}}}}\f0\fs20 >\par

@@ -1,8 +1,9 @@
-#define NOMINMAX
+﻿#define NOMINMAX
 #include <windows.h>
 #include <string>
 #include <winreg.h>
 #include <algorithm>
+#include "..\resource.h"
 #undef max
 #undef min
 #include <aclapi.h>
@@ -17,12 +18,17 @@
 #include <random>
 #include <limits>
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <wincrypt.h>
 #include "IoctlDefs.h"
 #include "../include/ControllerDefs.h"
 #include <shellapi.h>
+#include <external_data.h>
+#include <json.hpp>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "crypt32.lib")
 #if defined(_M_ARM64)
 #ifdef _DEBUG
@@ -55,23 +61,385 @@
 #error Unsupported architecture
 #endif
 
+using json = nlohmann::json;
+
+json g_languageJson;
+std::wstring g_languageCode = L"en";
+
+void EnsureLanguagesFileExists()
+{
+    wchar_t exePath[MAX_PATH] = { 0 };
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    std::wstring exeDir(exePath);
+    size_t lastSlash = exeDir.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos)
+        exeDir = exeDir.substr(0, lastSlash);
+
+    std::filesystem::path languagesFolder = exeDir + L"\\languages";
+    std::filesystem::create_directories(languagesFolder);
+
+    std::filesystem::path langFilePath = languagesFolder / "languages.json";
+
+    if (!std::filesystem::exists(langFilePath))
+    {
+        // USE THE en language as an template!
+	    // blank.
+        json defaultLang = {
+    {"en", {
+        {"program_started", "Program started."},
+        {"protection_enabled", "Protection enabled"},
+        {"protection_disabled", "Protection disabled"},
+        {"exit_msg", "Exiting"},
+        {"invalid_choice", "Invalid choice"},
+        {"service_installed", "Service installed and started successfully"},
+        {"service_failed", "Failed to install/start service"},
+        {"select_process", "Select process to terminate and wipe (0 to cancel):"},
+        {"cancelled", "Cancelled"},
+        {"process_terminated", "Process terminated:"},
+        {"backup_created", "Backup created:"},
+        {"failed_backup", "Failed to create backup at:"},
+        {"failed_wipe", "Failed to write random data to file:"},
+        {"kernel_error_detected", "A kernel security error was detected.\nPlease create an issue on our GitHub repository and attach errorlog.txt."}
+    }},
+    {"de", {
+        {"program_started", "Programm gestartet."},
+        {"protection_enabled", "Schutz aktiviert"},
+        {"protection_disabled", "Schutz deaktiviert"},
+        {"exit_msg", "Beenden"},
+        {"invalid_choice", "Ungültige Auswahl"},
+        {"service_installed", "Dienst erfolgreich installiert und gestartet"},
+        {"service_failed", "Dienstinstallation/-start fehlgeschlagen"},
+        {"select_process", "Prozess zum Beenden und Löschen auswählen (0 zum Abbrechen):"},
+        {"cancelled", "Abgebrochen"},
+        {"process_terminated", "Prozess beendet:"},
+        {"backup_created", "Backup erstellt:"},
+        {"failed_backup", "Backup konnte nicht erstellt werden:"},
+        {"failed_wipe", "Fehler beim Überschreiben der Datei:"},
+        {"kernel_error_detected", "Ein Kernel-Sicherheitsfehler wurde erkannt.\nBitte erstellen Sie ein Issue auf unserem GitHub-Repository und fügen Sie errorlog.txt bei."}
+    }},
+    {"fr", {
+        {"program_started", "Programme démarré."},
+        {"protection_enabled", "Protection activée"},
+        {"protection_disabled", "Protection désactivée"},
+        {"exit_msg", "Quitter"},
+        {"invalid_choice", "Choix invalide"},
+        {"service_installed", "Service installé et démarré avec succès"},
+        {"service_failed", "Échec de l'installation/démarrage du service"},
+        {"select_process", "Sélectionnez le processus à terminer et effacer (0 pour annuler):"},
+        {"cancelled", "Annulé"},
+        {"process_terminated", "Processus terminé:"},
+        {"backup_created", "Sauvegarde créée:"},
+        {"failed_backup", "Échec de la création de la sauvegarde:"},
+        {"failed_wipe", "Échec de l'écriture de données aléatoires sur le fichier:"},
+        {"kernel_error_detected", "Une erreur de sécurité du noyau a été détectée.\nVeuillez créer un problème sur notre dépôt GitHub et joindre errorlog.txt."}
+    }},
+    {"es", {
+        {"program_started", "Programa iniciado."},
+        {"protection_enabled", "Protección activada"},
+        {"protection_disabled", "Protección desactivada"},
+        {"exit_msg", "Salir"},
+        {"invalid_choice", "Opción inválida"},
+        {"service_installed", "Servicio instalado e iniciado correctamente"},
+        {"service_failed", "Error al instalar/iniciar el servicio"},
+        {"select_process", "Seleccione el proceso a terminar y borrar (0 para cancelar):"},
+        {"cancelled", "Cancelado"},
+        {"process_terminated", "Proceso terminado:"},
+        {"backup_created", "Copia de seguridad creada:"},
+        {"failed_backup", "Error al crear la copia de seguridad:"},
+        {"failed_wipe", "Error al escribir datos aleatorios en el archivo:"},
+        {"kernel_error_detected", "Se detectó un error de seguridad del kernel.\nPor favor, cree un issue en nuestro repositorio de GitHub y adjunte errorlog.txt."}
+    }},
+    {"it", {
+        {"program_started", "Programma avviato."},
+        {"protection_enabled", "Protezione attivata"},
+        {"protection_disabled", "Protezione disattivata"},
+        {"exit_msg", "Uscita"},
+        {"invalid_choice", "Scelta non valida"},
+        {"service_installed", "Servizio installato e avviato con successo"},
+        {"service_failed", "Installazione/avvio del servizio fallita"},
+        {"select_process", "Seleziona il processo da terminare e cancellare (0 per annullare):"},
+        {"cancelled", "Annullato"},
+        {"process_terminated", "Processo terminato:"},
+        {"backup_created", "Backup creato:"},
+        {"failed_backup", "Creazione del backup fallita:"},
+        {"failed_wipe", "Errore durante la scrittura dei dati casuali sul file:"},
+        {"kernel_error_detected", "Errore di sicurezza del kernel rilevato.\nSi prega di creare un issue nel repository GitHub e allegare errorlog.txt."}
+    }},
+    {"pt", {
+        {"program_started", "Programa iniciado."},
+        {"protection_enabled", "Proteção ativada"},
+        {"protection_disabled", "Proteção desativada"},
+        {"exit_msg", "Saindo"},
+        {"invalid_choice", "Escolha inválida"},
+        {"service_installed", "Serviço instalado e iniciado com sucesso"},
+        {"service_failed", "Falha ao instalar/iniciar serviço"},
+        {"select_process", "Selecione o processo para terminar e apagar (0 para cancelar):"},
+        {"cancelled", "Cancelado"},
+        {"process_terminated", "Processo terminado:"},
+        {"backup_created", "Backup criado:"},
+        {"failed_backup", "Falha ao criar backup em:"},
+        {"failed_wipe", "Falha ao escrever dados aleatórios no arquivo:"},
+        {"kernel_error_detected", "Erro de segurança do kernel detectado.\nCrie um issue no repositório GitHub e anexe errorlog.txt."}
+    }},
+    {"nl", {
+        {"program_started", "Programma gestart."},
+        {"protection_enabled", "Beveiliging ingeschakeld"},
+        {"protection_disabled", "Beveiliging uitgeschakeld"},
+        {"exit_msg", "Afsluiten"},
+        {"invalid_choice", "Ongeldige keuze"},
+        {"service_installed", "Service succesvol geïnstalleerd en gestart"},
+        {"service_failed", "Installatie/start service mislukt"},
+        {"select_process", "Selecteer proces om te beëindigen en wissen (0 om te annuleren):"},
+        {"cancelled", "Geannuleerd"},
+        {"process_terminated", "Proces beëindigd:"},
+        {"backup_created", "Backup gemaakt:"},
+        {"failed_backup", "Backup maken mislukt op:"},
+        {"failed_wipe", "Fout bij het schrijven van willekeurige gegevens naar bestand:"},
+        {"kernel_error_detected", "Een kernel-beveiligingsfout is gedetecteerd.\nMaak een issue op ons GitHub-repository en voeg errorlog.txt bij."}
+    }},
+    {"sv", {
+        {"program_started", "Programmet startat."},
+        {"protection_enabled", "Skydd aktiverat"},
+        {"protection_disabled", "Skydd inaktiverat"},
+        {"exit_msg", "Avslutar"},
+        {"invalid_choice", "Ogiltigt val"},
+        {"service_installed", "Tjänst installerad och startad"},
+        {"service_failed", "Misslyckades med att installera/starta tjänsten"},
+        {"select_process", "Välj process att avsluta och radera (0 för att avbryta):"},
+        {"cancelled", "Avbruten"},
+        {"process_terminated", "Process avslutad:"},
+        {"backup_created", "Backup skapad:"},
+        {"failed_backup", "Misslyckades med att skapa backup på:"},
+        {"failed_wipe", "Misslyckades med att skriva slumpdata till fil:"},
+        {"kernel_error_detected", "Ett kernelsekretessfel upptäcktes.\nSkapa ett issue på vårt GitHub-repo och bifoga errorlog.txt."}
+    }},
+    {"da", {
+        {"program_started", "Program startet."},
+        {"protection_enabled", "Beskytelse aktiveret"},
+        {"protection_disabled", "Beskytelse deaktiveret"},
+        {"exit_msg", "Afslutter"},
+        {"invalid_choice", "Ugyldigt valg"},
+        {"service_installed", "Service installeret og startet"},
+        {"service_failed", "Kunne ikke installere/starte service"},
+        {"select_process", "Vælg proces at afslutte og slette (0 for at annullere):"},
+        {"cancelled", "Annulleret"},
+        {"process_terminated", "Proces afsluttet:"},
+        {"backup_created", "Backup oprettet:"},
+        {"failed_backup", "Kunne ikke oprette backup på:"},
+        {"failed_wipe", "Kunne ikke skrive tilfældige data til filen:"},
+        {"kernel_error_detected", "En kernel-sikkerhedsfejl blev opdaget.\nOpret et issue på vores GitHub-repo og vedhæft errorlog.txt."}
+    }},
+    {"no", {
+        {"program_started", "Program startet."},
+        {"protection_enabled", "Beskyttelse aktivert"},
+        {"protection_disabled", "Beskyttelse deaktivert"},
+        {"exit_msg", "Avslutter"},
+        {"invalid_choice", "Ugyldig valg"},
+        {"service_installed", "Tjeneste installert og startet"},
+        {"service_failed", "Kunne ikke installere/starte tjeneste"},
+        {"select_process", "Velg prosess for å avslutte og slette (0 for å avbryte):"},
+        {"cancelled", "Avbrutt"},
+        {"process_terminated", "Prosess avsluttet:"},
+        {"backup_created", "Backup opprettet:"},
+        {"failed_backup", "Kunne ikke lage backup på:"},
+        {"failed_wipe", "Kunne ikke skrive tilfeldig data til filen:"},
+        {"kernel_error_detected", "En kernel-sikkerhetsfeil ble oppdaget.\nOpprett et issue på vårt GitHub-repo og legg ved errorlog.txt."}
+    }},
+    {"fi", {
+        {"program_started", "Ohjelma käynnistetty."},
+        {"protection_enabled", "Suojaus käytössä"},
+        {"protection_disabled", "Suojaus poistettu käytöstä"},
+        {"exit_msg", "Poistutaan"},
+        {"invalid_choice", "Virheellinen valinta"},
+        {"service_installed", "Palvelu asennettu ja käynnistetty onnistuneesti"},
+        {"service_failed", "Palvelun asennus/käynnistys epäonnistui"},
+        {"select_process", "Valitse prosessi lopetettavaksi ja poistettavaksi (0 peruuttaa):"},
+        {"cancelled", "Peruutettu"},
+        {"process_terminated", "Prosessi lopetettu:"},
+        {"backup_created", "Varmuuskopio luotu:"},
+        {"failed_backup", "Varuuskopion luominen epäonnistui:"},
+        {"failed_wipe", "Satunnaisdatan kirjoittaminen tiedostoon epäonnistui:"},
+        {"kernel_error_detected", "Kernel-turvavirhe havaittu.\nLuo issue GitHub-repositorioomme ja liitä errorlog.txt."}
+    }},
+    {"pl", {
+        {"program_started", "Program uruchomiony."},
+        {"protection_enabled", "Ochrona włączona"},
+        {"protection_disabled", "Ochrona wyłączona"},
+        {"exit_msg", "Zamykanie"},
+        {"invalid_choice", "Nieprawidłowy wybór"},
+        {"service_installed", "Usługa zainstalowana i uruchomiona pomyślnie"},
+        {"service_failed", "Nie udało się zainstalować/uruchomić usługi"},
+        {"select_process", "Wybierz proces do zakończenia i wyczyszczenia (0 aby anulować):"},
+        {"cancelled", "Anulowano"},
+        {"process_terminated", "Proces zakończony:"},
+        {"backup_created", "Utworzono kopię zapasową:"},
+        {"failed_backup", "Nie udało się utworzyć kopii zapasowej w:"},
+        {"failed_wipe", "Nie udało się zapisać losowych danych do pliku:"},
+        {"kernel_error_detected", "Wykryto błąd bezpieczeństwa jądra.\nUtwórz issue w naszym repozytorium GitHub i dołącz errorlog.txt."}
+    }},
+    {"ru", {
+        {"program_started", "Программа запущена."},
+        {"protection_enabled", "Защита включена"},
+        {"protection_disabled", "Защита отключена"},
+        {"exit_msg", "Выход"},
+        {"invalid_choice", "Неверный выбор"},
+        {"service_installed", "Служба успешно установлена и запущена"},
+        {"service_failed", "Не удалось установить/запустить службу"},
+        {"select_process", "Выберите процесс для завершения и очистки (0 для отмены):"},
+        {"cancelled", "Отменено"},
+        {"process_terminated", "Процесс завершен:"},
+        {"backup_created", "Создана резервная копия:"},
+        {"failed_backup", "Не удалось создать резервную копию в:"},
+        {"failed_wipe", "Не удалось записать случайные данные в файл:"},
+        {"kernel_error_detected", "Обнаружена ошибка безопасности ядра.\nСоздайте issue в нашем репозитории GitHub и приложите errorlog.txt."}
+    }},
+    {"cs", {
+        {"program_started", "Program spuštěn."},
+        {"protection_enabled", "Ochrana aktivována"},
+        {"protection_disabled", "Ochrana deaktivována"},
+        {"exit_msg", "Ukončuji"},
+        {"invalid_choice", "Neplatná volba"},
+        {"service_installed", "Služba nainstalována a spuštěna"},
+        {"service_failed", "Nepodařilo se nainstalovat/spustit službu"},
+        {"select_process", "Vyberte proces k ukončení a vymazání (0 pro zrušení):"},
+        {"cancelled", "Zrušeno"},
+        {"process_terminated", "Proces ukončen:"},
+        {"backup_created", "Záloha vytvořena:"},
+        {"failed_backup", "Nepodařilo se vytvořit zálohu na:"},
+        {"failed_wipe", "Nepodařilo se zapsat náhodná data do souboru:"},
+        {"kernel_error_detected", "Byla detekována chyba zabezpečení jádra.\nVytvořte issue na našem GitHub repozitáři a přiložte errorlog.txt."}
+    }},
+    {"hu", {
+        {"program_started", "Program elindítva."},
+        {"protection_enabled", "Védelem engedélyezve"},
+        {"protection_disabled", "Védelem letiltva"},
+        {"exit_msg", "Kilépés"},
+        {"invalid_choice", "Érvénytelen választás"},
+        {"service_installed", "Szolgáltatás telepítve és elindítva"},
+        {"service_failed", "A szolgáltatás telepítése/indítása sikertelen"},
+        {"select_process", "Válassza ki a folyamatot a megszüntetéshez és törléshez (0 a megszakításhoz):"},
+        {"cancelled", "Megszakítva"},
+        {"process_terminated", "Folyamat leállítva:"},
+        {"backup_created", "Biztonsági mentés létrehozva:"},
+        {"failed_backup", "Nem sikerült létrehozni a biztonsági mentést itt:"},
+        {"failed_wipe", "Nem sikerült véletlenszerű adatot írni a fájlba:"},
+        {"kernel_error_detected", "Kernel biztonsági hiba történt.\nKérjük, hozzon létre egy issue-t a GitHub repónkon, és csatolja az errorlog.txt fájlt."}
+    }}
+        };
+
+        std::ofstream ofs(langFilePath);
+        ofs << std::setw(4) << defaultLang << std::endl;
+    }
+}
+
+void LoadLanguage()
+{
+    EnsureLanguagesFileExists();
+
+    LANGID langId = GetUserDefaultUILanguage();
+    switch (PRIMARYLANGID(langId))
+    {
+    case LANG_GERMAN: g_languageCode = L"de"; break;
+    case LANG_FRENCH: g_languageCode = L"fr"; break;
+    case LANG_SPANISH: g_languageCode = L"es"; break;
+    case LANG_ITALIAN: g_languageCode = L"it"; break;
+    case LANG_PORTUGUESE: g_languageCode = L"pt"; break;
+    case LANG_DUTCH: g_languageCode = L"nl"; break;
+    case LANG_SWEDISH: g_languageCode = L"sv"; break;
+    case LANG_DANISH: g_languageCode = L"da"; break;
+    case LANG_NORWEGIAN: g_languageCode = L"no"; break;
+    case LANG_FINNISH: g_languageCode = L"fi"; break;
+    case LANG_POLISH: g_languageCode = L"pl"; break;
+    case LANG_RUSSIAN: g_languageCode = L"ru"; break;
+    case LANG_CZECH: g_languageCode = L"cs"; break;
+    case LANG_HUNGARIAN: g_languageCode = L"hu"; break;
+
+    case LANG_CHINESE: g_languageCode = L"zh"; break;
+    case LANG_JAPANESE: g_languageCode = L"ja"; break;
+    default: g_languageCode = L"en"; break;
+    }
+
+    wchar_t exePath[MAX_PATH] = { 0 };
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    std::wstring exeDir(exePath);
+    exeDir = exeDir.substr(0, exeDir.find_last_of(L"\\/"));
+
+    std::filesystem::path langFilePath = exeDir + L"\\languages\\languages.json";
+
+    std::ifstream langFile(langFilePath);
+    if (!langFile.is_open())
+        return;
+
+    try
+    {
+        json allLanguages;
+        langFile >> allLanguages;
+
+        std::string codeStr(g_languageCode.begin(), g_languageCode.end());
+        if (allLanguages.contains(codeStr))
+            g_languageJson = allLanguages[codeStr];
+        else
+            g_languageJson = allLanguages["en"];
+    }
+    catch (...) {}
+}
+
+std::string LStr(const std::string& key)
+{
+    if (g_languageJson.contains(key))
+        return g_languageJson[key].get<std::string>();
+    return key;
+}
 // --- Error Logging ---
 void InitErrorLog() {
     std::ofstream logFile("errorlog.txt", std::ios::out | std::ios::trunc);
-    auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
-    logFile << "EzAntiAntiCheat Log Started: " << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "\n";
+    if (!logFile.is_open()) return;
+
+    std::time_t t = std::time(nullptr);
+    std::tm tm;
+    localtime_s(&tm, &t);
+
+    logFile << "EzAntiAntiCheat Log Started: "
+        << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "\n";
     logFile.close();
 }
 
 void LogError(const std::string& msg) {
     std::ofstream logFile("errorlog.txt", std::ios::app);
-    if (logFile.is_open()) {
-        auto t = std::time(nullptr);
-        auto tm = *std::localtime(&t);
-        logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] [EzAntiAntiCheat] " << msg << "\n";
-        logFile.close();
-    }
+    if (!logFile.is_open()) return;
+
+    std::time_t t = std::time(nullptr);
+    std::tm tm;
+    localtime_s(&tm, &t);
+
+    logFile << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] [EzAntiAntiCheat] "
+        << msg << "\n";
+    logFile.close();
+}
+void LogTextA(const char* format, ...)
+{
+    char buffer[512] = { 0 };
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    std::ofstream logFile("logs.txt", std::ios::app);
+    logFile << "[EzAntiAntiCheat] " << buffer << "\n";
+    logFile.close();
+}
+
+void LogTextW(const wchar_t* format, ...)
+{
+    wchar_t buffer[512] = { 0 };
+    va_list args;
+    va_start(args, format);
+    vswprintf(buffer, sizeof(buffer) / sizeof(wchar_t), format, args);
+    va_end(args);
+
+    std::wofstream logFile("logs.txt", std::ios::app);
+    logFile << L"[EzAntiAntiCheat] " << buffer << L"\n";
+    logFile.close();
 }
 
 bool IsCertificatePresent(const std::wstring& subjectSubstring) {
@@ -207,7 +575,19 @@ void ListAndWipeProcess()
 {
 	// If you find this unclear this defines the anti cheats that are allowed to be targeted.
     static const std::vector<std::wstring> allowedExecutables = {
-         L"EasyAntiCheat.exe", L"vgk.exe", L"Vanguard.exe", L"RobloxPlayerBeta.exe" , L"EasyAntiCheat_EOS.exe"
+    L"BattlEyeA.exe",
+    L"BEService.exe",
+    L"EasyAntiCheat.exe",
+    L"EasyAntiCheat_EOS.exe",
+    L"faceit.exe",
+    L"faceitclient.exe",
+    L"PnkBstrA.exe",
+    L"PnkBstrB.exe",
+    L"RobloxPlayerBeta.exe",
+    L"steamservice.exe",
+    L"vgc.exe",
+    L"vgk.exe",
+    L"Vanguard.exe"
     };
     
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -414,7 +794,29 @@ void RunMenu()
         case 4:
             ListAndWipeProcess();
             break;
+        case 1912:
+        {
+            HRSRC hRes = FindResource(NULL, MAKEINTRESOURCE(IDR_MP3_SOUND), RT_RCDATA);
+            if (!hRes) break;
+            HGLOBAL hData = LoadResource(NULL, hRes);
+            if (!hData) break;
+            DWORD size = SizeofResource(NULL, hRes);
+            void* pData = LockResource(hData);
 
+            WCHAR tempPath[MAX_PATH], tempFile[MAX_PATH];
+            GetTempPathW(MAX_PATH, tempPath);
+            GetTempFileNameW(tempPath, L"mp3", 0, tempFile);
+
+            HANDLE hFile = CreateFileW(tempFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hFile != INVALID_HANDLE_VALUE) {
+                DWORD written;
+                WriteFile(hFile, pData, size, &written, NULL);
+                CloseHandle(hFile);
+                PlaySoundW(tempFile, NULL, SND_FILENAME | SND_ASYNC);
+                DeleteFileW(tempFile);
+            }
+            break;
+        }
         case 0:
             std::cout << "Exiting\n";
             LogError("Exiting");
@@ -529,6 +931,19 @@ bool EnsureTestSigningAndDisableSecureBoot()
     return true;
 }
 
+void RetrieveAndWriteKernelErrorLog()
+{
+    char errorLog[256] = { 0 };
+    if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog)))
+    {
+        if (strlen(errorLog) > 0)
+        {
+            std::ofstream logFile("logs.txt", std::ios::app);
+            logFile << "[EzAntiAntiCheatDriver] " << errorLog << "\n";
+            logFile.close();
+        }
+    }
+}
 void RetrieveAndWriteErrorLog() {
     char errorLog[256] = {0};
     if (SendIoctl(IOCTL_GET_LAST_ERROR_LOG, nullptr, 0, errorLog, sizeof(errorLog))) {
@@ -555,7 +970,24 @@ void ShowErrorPopupIfNeeded() {
             nullptr, nullptr, SW_SHOWNORMAL);
     }
 }
+void ShowKernelErrorPopupIfNeeded()
+{
+    std::ifstream logFile("logs.txt");
+    std::string logContent((std::istreambuf_iterator<char>(logFile)),
+        std::istreambuf_iterator<char>());
+    logFile.close();
 
+    if (logContent.find("[EzAntiAntiCheatDriver]") != std::string::npos)
+    {
+        MessageBoxA(nullptr,
+            "A kernel security error was detected.\nPlease create an issue on our GitHub repository and attach logs.txt.",
+            "EzAntiAntiCheat Error", MB_OK | MB_ICONERROR);
+
+        ShellExecuteA(nullptr, "open",
+            "https://github.com/PalorderSoftWorksOfficial/EzAntiAntiCheat/issues",
+            nullptr, nullptr, SW_SHOWNORMAL);
+    }
+}
 bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD outBufSize) {
     std::wstring protectedExe = L"\\\\.\\" + std::wstring(PROTECTED_EXE_NAME);
     HANDLE hDevice = CreateFileW(protectedExe.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
@@ -579,20 +1011,25 @@ bool SendIoctl(DWORD ioctl, void* inBuf, DWORD inBufSize, void* outBuf, DWORD ou
 // --- Main ---
 int main()
 {
+    size_t count = sizeof(CAPS) / sizeof(CAPS[0]);
+    SerialEntry* dyn = (SerialEntry*)malloc(count * sizeof(SerialEntry));
+
+    for (size_t i = 0; i < count; i++) {
+        dyn[i].id = CAPS[i].id;
+        dyn[i].hash = CAPS[i].hash;
+        dyn[i].serial = _wcsdup(CAPS[i].serial);
+    }
+
+    LoadLanguage();
+
     InitErrorLog();
     LogError("Program started.");
 
-    // Optionally check for certificate
-    bool certPresent = IsCertificatePresent(L"PalorderSoftWorks");
-    LogError(std::string("Certificate present in store: ") + (certPresent ? "YES" : "NO"));
-
-    RetrieveAndWriteErrorLog();
-    ShowErrorPopupIfNeeded();
+    std::cout << LStr("welcome_message") << "\n";
 
     if (!IsSystemAccount()) {
-        std::string msg = "This application must be run as NT AUTHORITY\\SYSTEM, and disable secure boot and enable test signing.";
-        std::cout << msg << "\nPress any key to exit...";
-        LogError(msg);
+        std::cout << LStr("run_as_system") << "\n";
+        LogError("Not running as SYSTEM account.");
         std::cin.get();
         return 1;
     }
